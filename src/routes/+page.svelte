@@ -269,9 +269,9 @@
         var infoWindow = new google.maps.InfoWindow({})
 
         onValue(query(commentsRef, orderByChild('timestamp')), (snapshot) => {
-            var amendmentHTML = "nothing here...";
+            var amendmentHTML = "<p>nothing here...</p>";
             snapshot.forEach((childSnapshot) => {
-                if (amendmentHTML == "nothing here...") {
+                if (amendmentHTML == "<p>nothing here...</p>") {
                     amendmentHTML = "";
                 }
                 amendmentHTML += `<p><b>${childSnapshot.val().username} - ${childSnapshot.val().date}</b>: ${childSnapshot.val().comment}</p>`
@@ -287,23 +287,23 @@
             if (!status) {
                 reportHTML += `
                     <p style="font-size: smaller; color: #d32f2f;">* this hazard may be resolved, proceed with caution.</p>
-                    <p style="font-size: smaller; color: #d32f2f;">this hazard was either reported as resolved by a community member, or is past the expected end date. as a crowdsourced tool, we rely on your reports to verify the presence of hazards.</p>
+                    <p style="font-size: smaller; color: #d32f2f;">this hazard was either flagged for review by a community member, or is past the expected end date. as a crowdsourced tool, we rely on your reports to verify the presence of hazards.</p>
                     <p style="font-size: smaller; color: #d32f2f;">last reported: ${report_date}</p>`;
             }
             reportHTML += `
-                    <h5>comments</h5>
-                    `+amendmentHTML+`
+                    <h5>comments</h5>`+amendmentHTML+`
                     <textarea id="amend_input" placeholder="add a comment" style="height: 80px;"></textarea>
                     <input type="checkbox" id="amend_anonymously">
                     <label for="amend_anonymously">comment anonymously</label><br>
-                    <input type="button" id="submitAmendment" value="submit comment"><br>`;
+                    <input type="button" id="submitAmendment" value="submit comment" style="margin-top:10px; background-color: #4CAF50; color: white; width: 40%;"><br>`;
             if (!status) {
                 reportHTML += `
-                    <input type="button" id="confirmedIncrement" value="this hazard is still present (${confirmed})">
-                    <input type="button" id="resolvedIncrement" value="this hazard is no longer present (${resolved})">`;
+                    <h5>if you have been here, is this hazard...</h5>
+                    <input type="button" id="confirmedIncrement" value="still present (${confirmed})" style="background-color: #4CAF50; color: white; width: 20%;">
+                    <input type="button" id="resolvedIncrement" value="not present (${resolved})" style="background-color: #f44336; color: white; width: 20%";>`;
             } else {
                 reportHTML += `
-                    <input type="button" id="reportHazardResolved" value="flag for review">`;
+                    <input type="button" id="reportHazardResolved" value="flag" style="background-color: #f44336; color: white; width: 40%;">`;
             }
 
             infoWindow.setContent(reportHTML);
@@ -504,6 +504,20 @@
         
     }
 
+    .user-auth {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .user-auth button {
+        background-color: #007bff;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
     :global(textarea) { 
         width: 100%; 
         padding: 10px; 
@@ -524,11 +538,12 @@
     :global(input[value="submit comment"]) { 
         background-color: #4CAF50; 
         color: white; 
+        width: 100%;
     }
-    :global(input[value="flag for review"]) { 
+    :global(input[value="flag"]) { 
         background-color: #f44336; 
         color: white; 
-        margin-left: 10px; 
+        width: 100%;
     }
 
 </style>
