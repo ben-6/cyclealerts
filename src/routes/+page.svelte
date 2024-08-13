@@ -6,6 +6,7 @@
     import { onMount } from 'svelte';
     import { initializeApp, getApps } from 'firebase/app' 
     import { getDatabase, ref, onValue, query, orderByChild, update, push, runTransaction, serverTimestamp } from 'firebase/database'
+    import { GoogleAuthProvider, getAuth, signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
 
     const firebaseConfig = {
         apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -20,6 +21,34 @@
 
     const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
     const database = getDatabase(app);
+
+    const auth = getAuth(app);
+    let user = undefined;
+
+    const signInWithGoogle = async () => {
+        const provider = new GoogleAuthProvider();
+        try {
+            const result = await signInWithPopup(auth, provider);   
+
+            user = result.user; 
+        } catch (error) {
+            console.error("error signing in with Google:", error);
+        }
+        };
+
+        const signOutUser = async () => {
+        try {
+            await signOut(auth);
+            user = undefined;
+        } catch (error) {
+            console.error("error signing out:", error);
+        }
+        };
+
+        onAuthStateChanged(auth, (currentUser) => {
+        user = currentUser;
+    });
+
 
     let map;
     let mapContainer;
@@ -139,45 +168,50 @@
         //console.log("addHazardBtn: " + addHazardBtn);
         if (addHazardBtn) {
             addHazardBtn.addEventListener("click", () => {
-                const hazardType = document.getElementById("hazardTypeSelect").value;
-                const details = document.getElementById("addDetails").value;
-                const start_date = document.getElementById("addStartDate").value;
-                const end_date = document.getElementById("addEndDate").value;
-                const corridor = document.getElementById("corridorSelect").value;
+                if (user) {
+                    const hazardType = document.getElementById("hazardTypeSelect").value;
+                    const details = document.getElementById("addDetails").value;
+                    const start_date = document.getElementById("addStartDate").value;
+                    const end_date = document.getElementById("addEndDate").value;
+                    const corridor = document.getElementById("corridorSelect").value;
 
-                const latLng = newHazardInfoWindow.getPosition();
+                    const latLng = newHazardInfoWindow.getPosition();
+                    
+                    document.getElementById("addStartDate").value = '';
+                    document.getElementById("addEndDate").value = '';
+                    document.getElementById("addDetails").value = ''; 
+
+                    const hazardData = {
+                        longitude: latLng.lng(),
+                        latitude: latLng.lat(),
+                        type: hazardType,
+                        details: details,
+                        start_date: start_date,
+                        end_date: end_date,
+                        status: betweenDateRange(start_date, end_date, 1),
+                        confirmed: 0,
+                        resolved: 0,
+                        report_date: status === 0 ? new Date().toISOString().slice(0, 10) : null,
+                        corridor: corridor
+                    };
+
+                    const hazardsRef = ref(database, 'hazards');
+                    push(hazardsRef, hazardData)
+                        .then((snapshot) => {
+                            console.log("Hazard data saved successfully!");
+
+                            createMarker(snapshot.key, hazardData["longitude"], hazardData["latitude"], hazardData["type"], hazardData["details"], hazardData["start_date"], hazardData["end_date"], hazardData['status'], hazardData['confirmed'], hazardData['resolved'], hazardData['report_date'], hazardData['corridor']);
+                        })
+                        .catch((error) => {
+                            console.error("Error writing hazard data:", error);
+                        }); 
+                    
+                    
+                    newHazardInfoWindow.close();
+                } else {
+                    alert("please sign in to use this feature.");
+                }
                 
-                document.getElementById("addStartDate").value = '';
-                document.getElementById("addEndDate").value = '';
-                document.getElementById("addDetails").value = ''; 
-
-                const hazardData = {
-                    longitude: latLng.lng(),
-                    latitude: latLng.lat(),
-                    type: hazardType,
-                    details: details,
-                    start_date: start_date,
-                    end_date: end_date,
-                    status: betweenDateRange(start_date, end_date, 1),
-                    confirmed: 0,
-                    resolved: 0,
-                    report_date: status === 0 ? new Date().toISOString().slice(0, 10) : null,
-                    corridor: corridor
-                };
-
-                const hazardsRef = ref(database, 'hazards');
-                push(hazardsRef, hazardData)
-                    .then((snapshot) => {
-                        console.log("Hazard data saved successfully!");
-
-                        createMarker(snapshot.key, hazardData["longitude"], hazardData["latitude"], hazardData["type"], hazardData["details"], hazardData["start_date"], hazardData["end_date"], hazardData['status'], hazardData['confirmed'], hazardData['resolved'], hazardData['report_date'], hazardData['corridor']);
-                    })
-                    .catch((error) => {
-                        console.error("Error writing hazard data:", error);
-                    }); 
-                
-                
-                newHazardInfoWindow.close();
                 
             });
         }
@@ -267,12 +301,12 @@
                     `+corridorHTML+`
                     <p style="line-height: 1.6;">${details}</p>
                     <p style="font-size: smaller; color: #d32f2f;">As a crowdsourced tool, we rely on your reports to verify the presence of hazards.</p>
-                    <h5>Comments</h5>
+                    <h5>comments:</h5>
                     `+amendmentHTML+`
                     <textarea id="amend_input" placeholder="Add a comment" style="height: 80px;"></textarea>
                     <textarea id="amend_username" placeholder="Name (optional)"></textarea>
-                    <input type="button" id="submitAmendment" value="Submit comment">
-                    <input type="button" id="reportHazardResolved" value="Report as Resolved">`;
+                    <input type="button" id="submitAmendment" value="submit comment">
+                    <input type="button" id="reportHazardResolved" value="flag for review">`;
             }
             infoWindow.setContent(reportHTML);
 
@@ -292,23 +326,35 @@
 
             google.maps.event.addListenerOnce(infoWindow, 'domready', () => {
                 document.getElementById("submitAmendment").addEventListener("click", () => {
-                    submitAmendment(id);
-                    console.log("submit)");
+                    if (user) {
+                        submitAmendment(id);
+                    } else {
+                        alert("please sign in to use this feature.");
+                    }
                 });
                 
                 if (!status) {
                     document.getElementById("confirmedIncrement").addEventListener("click", () => {
-                        confirmedIncrement(id);
-                        console.log("confirmed)");
+                        if (user) {
+                            confirmedIncrement(id);
+                        } else {
+                            alert("please sign in to use this feature.");
+                        }
                     });
                     document.getElementById("resolvedIncrement").addEventListener("click", () => {
-                        resolvedIncrement(id);
-                        console.log("resolved)");
+                        if (user) {
+                            resolvedIncrement(id);
+                        } else {
+                            alert("please sign in to use this feature.");
+                        }
                     });
                 } else {
                     document.getElementById("reportHazardResolved").addEventListener("click", () => {
-                        reportHazardResolved(id);
-                        console.log("report)");
+                        if (user) {
+                            reportHazardResolved(id);
+                        } else {
+                            alert("please sign in to use this feature.");
+                        }
                     });
                 }
                 
@@ -353,7 +399,7 @@
         amend_username = amend_username == "" ? "user" : amend_username;
 
         const hazardRef = ref(database, 'comments/' + id);
-
+        
         push(hazardRef, {"username": amend_username, "date": new Date().toISOString().slice(0, 10), "comment": amend_input, "timestamp": serverTimestamp()})
             .then(() => {
                 console.log("Key-value pair added successfully!");
@@ -427,7 +473,20 @@
 <div id="map" bind:this={mapContainer}></div>
 
 <div id="infoBox">
-  <h1>Click on the map to mark a hazard.</h1>
+    <h1>click on the map to mark a hazard.</h1>
+    {#if user}
+        <p>welcome, {user.displayName}!</p>
+        <button on:click={signOutUser}>sign out.</button>
+
+        
+    {:else}
+        <button on:click={signInWithGoogle}>Sign in with Google</button>
+    {/if}
+
+    <p>in a <a href="https://web.pdx.edu/~jdill/Types_of_Cyclists_PSUWorkingPaper.pdf">2012 portland state university study</a>, only ~10% of cyclists consider themselves as enthused & confident / strong & fearless.
+    many don't cycle because of the <b>unpredictability of bike lanes and roads.</b></p>
+    <p>cyclealerts is my attempt at reducing the local knowledge threshold for the ~50% of interested but concerned cyclists.</p>
+    
 </div>
 
 
@@ -443,6 +502,7 @@
         z-index: 10;
         margin: 20px;
         padding: 10px;
+        width: 20%;
         
     }
 
@@ -463,11 +523,11 @@
         border: none; 
         cursor: pointer; 
     }
-    :global(input[value="Submit comment"]) { 
+    :global(input[value="submit comment"]) { 
         background-color: #4CAF50; 
         color: white; 
     }
-    :global(input[value="Report as Resolved"]) { 
+    :global(input[value="flag for review"]) { 
         background-color: #f44336; 
         color: white; 
         margin-left: 10px; 
