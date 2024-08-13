@@ -100,28 +100,28 @@
 
 
 
-        const hazardTypes = ["pothole/bad pavement", "closure", "debris (glass, wet leaves, etc.)", "bad road design", "other"];
-        const corridorList = ["", "520 Trail", "I-90 Trail", "Alki Trail", "Burke Gilman Trail", "Cross Kirkland Corridor", "Eastrail", "East Lake Sammamish Trail", "Sammamish River Trail", "SODO Trail", "Lake Washington Loop (Kirkland)", "Lake Washington Loop (South Bellevue/Renton)", "Lake Washington Loop (South Seattle/Central District)"];
+        const hazardTypes = ["bad road design", "pothole/bad pavement", "closure", "debris (glass, wet leaves, etc.)", "other"];
+        const corridorList = ["", "520 trail", "I-90 trail", "alki trail", "burke gilman trail", "cross kirkland corridor", "eastrail", "east lake sammamish trail", "sammamish river trail", "SODO trail", "lake washington loop (Kirkland)", "lake washington loop (south bellevue/renton)", "lake washington loop (south seattle/central district)"];
 
         // InfoWindow for creating new hazard
         const newHazardInfoWindow = new google.maps.InfoWindow({
             content: `
-                <h1 style="color: #d32f2f">Add Hazard</h1>
-                <h3>Select Hazard Type</h3>
+                <h1 style="color: #d32f2f">add hazard</h1>
+                <h3>select hazard type</h3>
                 <select id="hazardTypeSelect" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc;">
                     ${hazardTypes.map(type => `<option value="${type}">${type}</option>`).join('')}
                 </select>
-                <h3>Select Start Date</h3>
+                <h3>select start date</h3>
                 <input type="date" id="addStartDate"></input>
-                <h3>Select End Date (leave blank if unknown)</h3>
+                <h3>select end date (leave blank if unknown)</h3>
                 <input type="date" id="addEndDate"></input>
-                <h3>Description</h3>
-                <textarea id="addDetails" placeholder="Describe the hazard" style="height: 80px;"></textarea>
-                <h3>Select Bike Corridor (if applicable)</h3>
+                <h3>description</h3>
+                <textarea id="addDetails" placeholder="describe the hazard" style="height: 80px;"></textarea>
+                <h3>select bike corridor (if applicable)</h3>
                 <select id="corridorSelect" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc;">
                     ${corridorList.map(type => `<option value="${type}">${type}</option>`).join('')}
                 </select>
-                <button id="addHazardBtn">Add Hazard</button>
+                <button id="addHazardBtn">add hazard</button>
             `
         });
         
@@ -198,12 +198,12 @@
                     const hazardsRef = ref(database, 'hazards');
                     push(hazardsRef, hazardData)
                         .then((snapshot) => {
-                            console.log("Hazard data saved successfully!");
+                            console.log("hazard data saved successfully!");
 
                             createMarker(snapshot.key, hazardData["longitude"], hazardData["latitude"], hazardData["type"], hazardData["details"], hazardData["start_date"], hazardData["end_date"], hazardData['status'], hazardData['confirmed'], hazardData['resolved'], hazardData['report_date'], hazardData['corridor']);
                         })
                         .catch((error) => {
-                            console.error("Error writing hazard data:", error);
+                            console.error("error writing hazard data:", error);
                         }); 
                     
                     
@@ -261,7 +261,7 @@
             content: pinScaled.element
         });
         
-        var corridorHTML = corridor != "" ? '<h5 >Corridor: ' + corridor + '</h5>': "";
+        var corridorHTML = corridor != "" ? '<h5 >corridor: ' + corridor + '</h5>': "";
         
         
         const commentsRef = ref(database, 'comments/'+id);
@@ -269,45 +269,42 @@
         var infoWindow = new google.maps.InfoWindow({})
 
         onValue(query(commentsRef, orderByChild('timestamp')), (snapshot) => {
-            var amendmentHTML = "";
+            var amendmentHTML = "nothing here...";
             snapshot.forEach((childSnapshot) => {
+                if (amendmentHTML == "nothing here...") {
+                    amendmentHTML = "";
+                }
                 amendmentHTML += `<p><b>${childSnapshot.val().username} - ${childSnapshot.val().date}</b>: ${childSnapshot.val().comment}</p>`
             });
             //console.log(amendmentHTML);
-            var reportHTML = "";
+            var reportHTML = `
+                <h1>hazard: ${type}</h1>
+                <h5>expected start: ${start_date}</h5>
+                <h5>expected end: ${end_date}</h5>
+                `+corridorHTML+`
+                <p style="line-height: 1.6;">${details}</p>
+            `;
             if (!status) {
-                reportHTML = `
-                    <h1>Hazard: ${type}</h1>
-                    <h5>Expected Start: ${start_date}</h5>
-                    <h5>Expected End: ${end_date}</h5>
-                    `+corridorHTML+`
-                    <p style="line-height: 1.6;">${details}</p>
-                    <p style="font-size: smaller; color: #d32f2f;">* This hazard may be resolved, proceed with caution.</p>
-                    <p style="font-size: smaller; color: #d32f2f;">This hazard was either reported as resolved by a community member, or is past the expected end date. As a crowdsourced tool, we rely on your reports to verify the presence of hazards.</p>
-                    <p style="font-size: smaller; color: #d32f2f;">Last reported: ${report_date}</p>
-                    </div>
-                    <h5>Comments</h5>
+                reportHTML += `
+                    <p style="font-size: smaller; color: #d32f2f;">* this hazard may be resolved, proceed with caution.</p>
+                    <p style="font-size: smaller; color: #d32f2f;">this hazard was either reported as resolved by a community member, or is past the expected end date. as a crowdsourced tool, we rely on your reports to verify the presence of hazards.</p>
+                    <p style="font-size: smaller; color: #d32f2f;">last reported: ${report_date}</p>`;
+            }
+            reportHTML += `
+                    <h5>comments</h5>
                     `+amendmentHTML+`
-                    <textarea id="amend_input" placeholder="Add a comment" style="height: 80px;"></textarea>
-                    <textarea id="amend_username" placeholder="Name (optional)"></textarea>
-                    <input type="button" id="submitAmendment" value="Submit comment"><br>
-                    <input type="button" id="confirmedIncrement" value="This hazard is still present (${confirmed})">
-                    <input type="button" id="resolvedIncrement" value="This hazard is no longer present (${resolved})">`;
+                    <textarea id="amend_input" placeholder="add a comment" style="height: 80px;"></textarea>
+                    <textarea id="amend_username" placeholder="name (optional)"></textarea>
+                    <input type="button" id="submitAmendment" value="submit comment"><br>`;
+            if (!status) {
+                reportHTML += `
+                    <input type="button" id="confirmedIncrement" value="this hazard is still present (${confirmed})">
+                    <input type="button" id="resolvedIncrement" value="this hazard is no longer present (${resolved})">`;
             } else {
-                reportHTML = `
-                    <h1>Hazard: ${type}</h1>
-                    <h5>Expected Start: ${start_date}</h5>
-                    <h5>Expected End: ${end_date}</h5>
-                    `+corridorHTML+`
-                    <p style="line-height: 1.6;">${details}</p>
-                    <p style="font-size: smaller; color: #d32f2f;">As a crowdsourced tool, we rely on your reports to verify the presence of hazards.</p>
-                    <h5>comments:</h5>
-                    `+amendmentHTML+`
-                    <textarea id="amend_input" placeholder="Add a comment" style="height: 80px;"></textarea>
-                    <textarea id="amend_username" placeholder="Name (optional)"></textarea>
-                    <input type="button" id="submitAmendment" value="submit comment">
+                reportHTML += `
                     <input type="button" id="reportHazardResolved" value="flag for review">`;
             }
+
             infoWindow.setContent(reportHTML);
 
             // Click event to open InfoWindow
@@ -369,8 +366,8 @@
     function handleLocationError(browserHasGeolocation, pos) {
         const infoWindow = new google.maps.InfoWindow({ // Using standard InfoWindow
             content: browserHasGeolocation
-                ? 'Error: The Geolocation service failed.'
-                : 'Error: Your browser doesn\'t support geolocation.',
+                ? 'error: the geolocation service failed.'
+                : 'error: your browser doesn\'t support geolocation.',
             position: pos,
         });
         infoWindow.open(map);
@@ -382,10 +379,10 @@
         // Update a single property
         update(hazardRef, { status: 0, confirmed: 0, resolved: 0, report_date: new Date().toISOString().slice(0, 10)})
             .then(() => {
-                console.log("Hazard data updated successfully!");
+                console.log("hazard data updated successfully!");
             })
             .catch((error) => {
-                console.error("Error updating hazard data:", error);
+                console.error("error updating hazard data:", error);
             });
 
         if (currentInfoWindow) {
@@ -402,10 +399,10 @@
         
         push(hazardRef, {"username": amend_username, "date": new Date().toISOString().slice(0, 10), "comment": amend_input, "timestamp": serverTimestamp()})
             .then(() => {
-                console.log("Key-value pair added successfully!");
+                console.log("key-value pair added successfully!");
             })
             .catch((error) => {
-                console.error("Error adding key-value pair:", error);
+                console.error("error adding key-value pair:", error);
             });
 
         if (currentInfoWindow) {
@@ -421,10 +418,10 @@
             return (currentCount || 0) + 1; // Increment, or start at 1 if it doesn't exist
         })
             .then(() => {
-                console.log("Value incremented successfully!");
+                console.log("value incremented successfully!");
             })
             .catch((error) => {
-                console.error("Error incrementing value:", error);
+                console.error("error incrementing value:", error);
             });
 
         if (currentInfoWindow) {
@@ -439,10 +436,10 @@
             return (currentCount || 0) + 1; // Increment, or start at 1 if it doesn't exist
         })
             .then(() => {
-                console.log("Value incremented successfully!");
+                console.log("value incremented successfully!");
             })
             .catch((error) => {
-                console.error("Error incrementing value:", error);
+                console.error("error incrementing value:", error);
             });
         
         if (currentInfoWindow) {
