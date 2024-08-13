@@ -6,6 +6,7 @@
     import { onMount } from 'svelte';
     import { initializeApp, getApps } from 'firebase/app' 
     import { getDatabase, ref, onValue, query, orderByChild, update, push, runTransaction, serverTimestamp } from 'firebase/database'
+    import { GoogleAuthProvider, getAuth, signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
 
     const firebaseConfig = {
         apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -20,6 +21,34 @@
 
     const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
     const database = getDatabase(app);
+
+    const auth = getAuth(app);
+    let user = undefined;
+
+    const signInWithGoogle = async () => {
+        const provider = new GoogleAuthProvider();
+        try {
+            const result = await signInWithPopup(auth, provider);   
+
+            user = result.user; 
+        } catch (error) {
+            console.error("error signing in with Google:", error);
+        }
+        };
+
+        const signOutUser = async () => {
+        try {
+            await signOut(auth);
+            user = undefined;
+        } catch (error) {
+            console.error("error signing out:", error);
+        }
+        };
+
+        onAuthStateChanged(auth, (currentUser) => {
+        user = currentUser;
+    });
+
 
     let map;
     let mapContainer;
@@ -71,28 +100,28 @@
 
 
 
-        const hazardTypes = ["pothole/bad pavement", "closure", "debris (glass, wet leaves, etc.)", "bad road design", "other"];
-        const corridorList = ["", "520 Trail", "I-90 Trail", "Alki Trail", "Burke Gilman Trail", "Cross Kirkland Corridor", "Eastrail", "East Lake Sammamish Trail", "Sammamish River Trail", "SODO Trail", "Lake Washington Loop (Kirkland)", "Lake Washington Loop (South Bellevue/Renton)", "Lake Washington Loop (South Seattle/Central District)"];
+        const hazardTypes = ["bad road design", "pothole/bad pavement", "closure", "debris (glass, wet leaves, etc.)", "other"];
+        const corridorList = ["", "520 trail", "I-90 trail", "alki trail", "burke gilman trail", "cross kirkland corridor", "eastrail", "east lake sammamish trail", "sammamish river trail", "SODO trail", "lake washington loop (Kirkland)", "lake washington loop (south bellevue/renton)", "lake washington loop (south seattle/central district)"];
 
         // InfoWindow for creating new hazard
         const newHazardInfoWindow = new google.maps.InfoWindow({
             content: `
-                <h1 style="color: #d32f2f">Add Hazard</h1>
-                <h3>Select Hazard Type</h3>
+                <h1 style="color: #d32f2f">add hazard</h1>
+                <h3>select hazard type</h3>
                 <select id="hazardTypeSelect" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc;">
                     ${hazardTypes.map(type => `<option value="${type}">${type}</option>`).join('')}
                 </select>
-                <h3>Select Start Date</h3>
+                <h3>select start date</h3>
                 <input type="date" id="addStartDate"></input>
-                <h3>Select End Date (leave blank if unknown)</h3>
+                <h3>select end date (leave blank if unknown)</h3>
                 <input type="date" id="addEndDate"></input>
-                <h3>Description</h3>
-                <textarea id="addDetails" placeholder="Describe the hazard" style="height: 80px;"></textarea>
-                <h3>Select Bike Corridor (if applicable)</h3>
+                <h3>description</h3>
+                <textarea id="addDetails" placeholder="describe the hazard" style="height: 80px;"></textarea>
+                <h3>select bike corridor (if applicable)</h3>
                 <select id="corridorSelect" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc;">
                     ${corridorList.map(type => `<option value="${type}">${type}</option>`).join('')}
                 </select>
-                <button id="addHazardBtn">Add Hazard</button>
+                <button id="addHazardBtn">add hazard</button>
             `
         });
         
@@ -139,45 +168,50 @@
         //console.log("addHazardBtn: " + addHazardBtn);
         if (addHazardBtn) {
             addHazardBtn.addEventListener("click", () => {
-                const hazardType = document.getElementById("hazardTypeSelect").value;
-                const details = document.getElementById("addDetails").value;
-                const start_date = document.getElementById("addStartDate").value;
-                const end_date = document.getElementById("addEndDate").value;
-                const corridor = document.getElementById("corridorSelect").value;
+                if (user) {
+                    const hazardType = document.getElementById("hazardTypeSelect").value;
+                    const details = document.getElementById("addDetails").value;
+                    const start_date = document.getElementById("addStartDate").value;
+                    const end_date = document.getElementById("addEndDate").value;
+                    const corridor = document.getElementById("corridorSelect").value;
 
-                const latLng = newHazardInfoWindow.getPosition();
+                    const latLng = newHazardInfoWindow.getPosition();
+                    
+                    document.getElementById("addStartDate").value = '';
+                    document.getElementById("addEndDate").value = '';
+                    document.getElementById("addDetails").value = ''; 
+
+                    const hazardData = {
+                        longitude: latLng.lng(),
+                        latitude: latLng.lat(),
+                        type: hazardType,
+                        details: details,
+                        start_date: start_date,
+                        end_date: end_date,
+                        status: betweenDateRange(start_date, end_date, 1),
+                        confirmed: 0,
+                        resolved: 0,
+                        report_date: status === 0 ? new Date().toISOString().slice(0, 10) : null,
+                        corridor: corridor
+                    };
+
+                    const hazardsRef = ref(database, 'hazards');
+                    push(hazardsRef, hazardData)
+                        .then((snapshot) => {
+                            console.log("hazard data saved successfully!");
+
+                            createMarker(snapshot.key, hazardData["longitude"], hazardData["latitude"], hazardData["type"], hazardData["details"], hazardData["start_date"], hazardData["end_date"], hazardData['status'], hazardData['confirmed'], hazardData['resolved'], hazardData['report_date'], hazardData['corridor']);
+                        })
+                        .catch((error) => {
+                            console.error("error writing hazard data:", error);
+                        }); 
+                    
+                    
+                    newHazardInfoWindow.close();
+                } else {
+                    alert("please sign in to use this feature.");
+                }
                 
-                document.getElementById("addStartDate").value = '';
-                document.getElementById("addEndDate").value = '';
-                document.getElementById("addDetails").value = ''; 
-
-                const hazardData = {
-                    longitude: latLng.lng(),
-                    latitude: latLng.lat(),
-                    type: hazardType,
-                    details: details,
-                    start_date: start_date,
-                    end_date: end_date,
-                    status: betweenDateRange(start_date, end_date, 1),
-                    confirmed: 0,
-                    resolved: 0,
-                    report_date: status === 0 ? new Date().toISOString().slice(0, 10) : null,
-                    corridor: corridor
-                };
-
-                const hazardsRef = ref(database, 'hazards');
-                push(hazardsRef, hazardData)
-                    .then((snapshot) => {
-                        console.log("Hazard data saved successfully!");
-
-                        createMarker(snapshot.key, hazardData["longitude"], hazardData["latitude"], hazardData["type"], hazardData["details"], hazardData["start_date"], hazardData["end_date"], hazardData['status'], hazardData['confirmed'], hazardData['resolved'], hazardData['report_date'], hazardData['corridor']);
-                    })
-                    .catch((error) => {
-                        console.error("Error writing hazard data:", error);
-                    }); 
-                
-                
-                newHazardInfoWindow.close();
                 
             });
         }
@@ -227,7 +261,7 @@
             content: pinScaled.element
         });
         
-        var corridorHTML = corridor != "" ? '<h5 >Corridor: ' + corridor + '</h5>': "";
+        var corridorHTML = corridor != "" ? '<h5 >corridor: ' + corridor + '</h5>': "";
         
         
         const commentsRef = ref(database, 'comments/'+id);
@@ -235,45 +269,43 @@
         var infoWindow = new google.maps.InfoWindow({})
 
         onValue(query(commentsRef, orderByChild('timestamp')), (snapshot) => {
-            var amendmentHTML = "";
+            var amendmentHTML = "<p>nothing here...</p>";
             snapshot.forEach((childSnapshot) => {
+                if (amendmentHTML == "<p>nothing here...</p>") {
+                    amendmentHTML = "";
+                }
                 amendmentHTML += `<p><b>${childSnapshot.val().username} - ${childSnapshot.val().date}</b>: ${childSnapshot.val().comment}</p>`
             });
             //console.log(amendmentHTML);
-            var reportHTML = "";
+            var reportHTML = `
+                <h1>hazard: ${type}</h1>
+                <h5>expected start: ${start_date}</h5>
+                <h5>expected end: ${end_date}</h5>
+                `+corridorHTML+`
+                <p style="line-height: 1.6;">${details}</p>
+            `;
             if (!status) {
-                reportHTML = `
-                    <h1>Hazard: ${type}</h1>
-                    <h5>Expected Start: ${start_date}</h5>
-                    <h5>Expected End: ${end_date}</h5>
-                    `+corridorHTML+`
-                    <p style="line-height: 1.6;">${details}</p>
-                    <p style="font-size: smaller; color: #d32f2f;">* This hazard may be resolved, proceed with caution.</p>
-                    <p style="font-size: smaller; color: #d32f2f;">This hazard was either reported as resolved by a community member, or is past the expected end date. As a crowdsourced tool, we rely on your reports to verify the presence of hazards.</p>
-                    <p style="font-size: smaller; color: #d32f2f;">Last reported: ${report_date}</p>
-                    </div>
-                    <h5>Comments</h5>
-                    `+amendmentHTML+`
-                    <textarea id="amend_input" placeholder="Add a comment" style="height: 80px;"></textarea>
-                    <textarea id="amend_username" placeholder="Name (optional)"></textarea>
-                    <input type="button" id="submitAmendment" value="Submit comment"><br>
-                    <input type="button" id="confirmedIncrement" value="This hazard is still present (${confirmed})">
-                    <input type="button" id="resolvedIncrement" value="This hazard is no longer present (${resolved})">`;
-            } else {
-                reportHTML = `
-                    <h1>Hazard: ${type}</h1>
-                    <h5>Expected Start: ${start_date}</h5>
-                    <h5>Expected End: ${end_date}</h5>
-                    `+corridorHTML+`
-                    <p style="line-height: 1.6;">${details}</p>
-                    <p style="font-size: smaller; color: #d32f2f;">As a crowdsourced tool, we rely on your reports to verify the presence of hazards.</p>
-                    <h5>Comments</h5>
-                    `+amendmentHTML+`
-                    <textarea id="amend_input" placeholder="Add a comment" style="height: 80px;"></textarea>
-                    <textarea id="amend_username" placeholder="Name (optional)"></textarea>
-                    <input type="button" id="submitAmendment" value="Submit comment">
-                    <input type="button" id="reportHazardResolved" value="Report as Resolved">`;
+                reportHTML += `
+                    <p style="font-size: smaller; color: #d32f2f;">* this hazard may be resolved, proceed with caution.</p>
+                    <p style="font-size: smaller; color: #d32f2f;">this hazard was either flagged for review by a community member, or is past the expected end date. as a crowdsourced tool, we rely on your reports to verify the presence of hazards.</p>
+                    <p style="font-size: smaller; color: #d32f2f;">last reported: ${report_date}</p>`;
             }
+            reportHTML += `
+                    <h5>comments</h5>`+amendmentHTML+`
+                    <textarea id="amend_input" placeholder="add a comment" style="height: 80px;"></textarea>
+                    <input type="checkbox" id="amend_anonymously">
+                    <label for="amend_anonymously">comment anonymously</label><br>
+                    <input type="button" id="submitAmendment" value="submit comment" style="margin-top:10px; background-color: #4CAF50; color: white; width: 40%;"><br>`;
+            if (!status) {
+                reportHTML += `
+                    <h5>if you have been here, is this hazard...</h5>
+                    <input type="button" id="confirmedIncrement" value="still present (${confirmed})" style="background-color: #4CAF50; color: white; width: 20%;">
+                    <input type="button" id="resolvedIncrement" value="not present (${resolved})" style="background-color: #f44336; color: white; width: 20%";>`;
+            } else {
+                reportHTML += `
+                    <input type="button" id="reportHazardResolved" value="flag" style="background-color: #f44336; color: white; width: 40%;">`;
+            }
+
             infoWindow.setContent(reportHTML);
 
             // Click event to open InfoWindow
@@ -292,23 +324,35 @@
 
             google.maps.event.addListenerOnce(infoWindow, 'domready', () => {
                 document.getElementById("submitAmendment").addEventListener("click", () => {
-                    submitAmendment(id);
-                    console.log("submit)");
+                    if (user) {
+                        submitAmendment(id);
+                    } else {
+                        alert("please sign in to use this feature.");
+                    }
                 });
                 
                 if (!status) {
                     document.getElementById("confirmedIncrement").addEventListener("click", () => {
-                        confirmedIncrement(id);
-                        console.log("confirmed)");
+                        if (user) {
+                            confirmedIncrement(id);
+                        } else {
+                            alert("please sign in to use this feature.");
+                        }
                     });
                     document.getElementById("resolvedIncrement").addEventListener("click", () => {
-                        resolvedIncrement(id);
-                        console.log("resolved)");
+                        if (user) {
+                            resolvedIncrement(id);
+                        } else {
+                            alert("please sign in to use this feature.");
+                        }
                     });
                 } else {
                     document.getElementById("reportHazardResolved").addEventListener("click", () => {
-                        reportHazardResolved(id);
-                        console.log("report)");
+                        if (user) {
+                            reportHazardResolved(id);
+                        } else {
+                            alert("please sign in to use this feature.");
+                        }
                     });
                 }
                 
@@ -323,8 +367,8 @@
     function handleLocationError(browserHasGeolocation, pos) {
         const infoWindow = new google.maps.InfoWindow({ // Using standard InfoWindow
             content: browserHasGeolocation
-                ? 'Error: The Geolocation service failed.'
-                : 'Error: Your browser doesn\'t support geolocation.',
+                ? 'error: the geolocation service failed.'
+                : 'error: your browser doesn\'t support geolocation.',
             position: pos,
         });
         infoWindow.open(map);
@@ -336,10 +380,10 @@
         // Update a single property
         update(hazardRef, { status: 0, confirmed: 0, resolved: 0, report_date: new Date().toISOString().slice(0, 10)})
             .then(() => {
-                console.log("Hazard data updated successfully!");
+                console.log("hazard data updated successfully!");
             })
             .catch((error) => {
-                console.error("Error updating hazard data:", error);
+                console.error("error updating hazard data:", error);
             });
 
         if (currentInfoWindow) {
@@ -349,17 +393,17 @@
 
     function submitAmendment(id) {
         var amend_input = document.getElementById("amend_input").value.trim()
-        var amend_username = document.getElementById("amend_username").value.trim()
-        amend_username = amend_username == "" ? "user" : amend_username;
+        
+        var amend_username = document.getElementById("amend_anonymously").checked == true ? "anonymous user" : user.displayName;
 
         const hazardRef = ref(database, 'comments/' + id);
-
+        
         push(hazardRef, {"username": amend_username, "date": new Date().toISOString().slice(0, 10), "comment": amend_input, "timestamp": serverTimestamp()})
             .then(() => {
-                console.log("Key-value pair added successfully!");
+                console.log("key-value pair added successfully!");
             })
             .catch((error) => {
-                console.error("Error adding key-value pair:", error);
+                console.error("error adding key-value pair:", error);
             });
 
         if (currentInfoWindow) {
@@ -375,10 +419,10 @@
             return (currentCount || 0) + 1; // Increment, or start at 1 if it doesn't exist
         })
             .then(() => {
-                console.log("Value incremented successfully!");
+                console.log("value incremented successfully!");
             })
             .catch((error) => {
-                console.error("Error incrementing value:", error);
+                console.error("error incrementing value:", error);
             });
 
         if (currentInfoWindow) {
@@ -393,10 +437,10 @@
             return (currentCount || 0) + 1; // Increment, or start at 1 if it doesn't exist
         })
             .then(() => {
-                console.log("Value incremented successfully!");
+                console.log("value incremented successfully!");
             })
             .catch((error) => {
-                console.error("Error incrementing value:", error);
+                console.error("error incrementing value:", error);
             });
         
         if (currentInfoWindow) {
@@ -427,7 +471,20 @@
 <div id="map" bind:this={mapContainer}></div>
 
 <div id="infoBox">
-  <h1>Click on the map to mark a hazard.</h1>
+    <h1>click on the map to mark a hazard.</h1>
+    {#if user}
+        <p>welcome, {user.displayName}!</p>
+        <button on:click={signOutUser}>sign out.</button>
+
+        
+    {:else}
+        <button on:click={signInWithGoogle}>sign in with google</button>
+    {/if}
+
+    <p>in a <a href="https://web.pdx.edu/~jdill/Types_of_Cyclists_PSUWorkingPaper.pdf">2012 portland state university study</a>, only ~10% of cyclists consider themselves as enthused & confident / strong & fearless.
+    many don't cycle because of the <b>unpredictability of bike lanes and roads.</b></p>
+    <p>cyclealerts is my attempt at reducing the local knowledge threshold for the ~50% of interested but concerned cyclists.</p>
+    
 </div>
 
 
@@ -443,7 +500,22 @@
         z-index: 10;
         margin: 20px;
         padding: 10px;
+        width: 20%;
         
+    }
+
+    .user-auth {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .user-auth button {
+        background-color: #007bff;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
     }
 
     :global(textarea) { 
@@ -463,14 +535,15 @@
         border: none; 
         cursor: pointer; 
     }
-    :global(input[value="Submit comment"]) { 
+    :global(input[value="submit comment"]) { 
         background-color: #4CAF50; 
         color: white; 
+        width: 100%;
     }
-    :global(input[value="Report as Resolved"]) { 
+    :global(input[value="flag"]) { 
         background-color: #f44336; 
         color: white; 
-        margin-left: 10px; 
+        width: 100%;
     }
 
 </style>
