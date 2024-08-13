@@ -294,7 +294,8 @@
                     <h5>comments</h5>
                     `+amendmentHTML+`
                     <textarea id="amend_input" placeholder="add a comment" style="height: 80px;"></textarea>
-                    <textarea id="amend_username" placeholder="name (optional)"></textarea>
+                    <input type="checkbox" id="amend_anonymously">
+                    <label for="amend_anonymously">comment anonymously</label><br>
                     <input type="button" id="submitAmendment" value="submit comment"><br>`;
             if (!status) {
                 reportHTML += `
@@ -392,8 +393,8 @@
 
     function submitAmendment(id) {
         var amend_input = document.getElementById("amend_input").value.trim()
-        var amend_username = document.getElementById("amend_username").value.trim()
-        amend_username = amend_username == "" ? "user" : amend_username;
+        
+        var amend_username = document.getElementById("amend_anonymously").checked == true ? "anonymous user" : user.displayName;
 
         const hazardRef = ref(database, 'comments/' + id);
         
@@ -477,7 +478,7 @@
 
         
     {:else}
-        <button on:click={signInWithGoogle}>Sign in with Google</button>
+        <button on:click={signInWithGoogle}>sign in with google</button>
     {/if}
 
     <p>in a <a href="https://web.pdx.edu/~jdill/Types_of_Cyclists_PSUWorkingPaper.pdf">2012 portland state university study</a>, only ~10% of cyclists consider themselves as enthused & confident / strong & fearless.
