@@ -5,7 +5,7 @@
 <script>
     import { onMount } from 'svelte';
     import { initializeApp, getApps } from 'firebase/app' 
-    import { getDatabase, ref, onValue, query, orderByChild, update, push, runTransaction, serverTimestamp } from 'firebase/database'
+    import { getDatabase, ref, onValue, query, orderByChild, update, push, runTransaction, serverTimestamp, remove } from 'firebase/database'
     import { GoogleAuthProvider, getAuth, signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
 
     const firebaseConfig = {
@@ -29,23 +29,21 @@
         const provider = new GoogleAuthProvider();
         try {
             const result = await signInWithPopup(auth, provider);   
-
             user = result.user; 
         } catch (error) {
             console.error("error signing in with Google:", error);
         }
-        };
+    };
 
-        const signOutUser = async () => {
+    const signOutUser = async () => {
         try {
             await signOut(auth);
             user = undefined;
         } catch (error) {
             console.error("error signing out:", error);
         }
-        };
-
-        onAuthStateChanged(auth, (currentUser) => {
+    };
+    onAuthStateChanged(auth, (currentUser) => {
         user = currentUser;
     });
 
@@ -93,41 +91,58 @@
                     mapMarkers[childSnapshot.key].setMap(null);
                 }
                 
-                createMarker(childSnapshot.key, markerData.longitude, markerData.latitude, markerData.type, markerData.details, markerData.start_date, markerData.end_date, markerData.status, markerData.confirmed, markerData.resolved, markerData.report_date, markerData.corridor);
+                createMarker(childSnapshot.key, markerData.longitude, markerData.latitude, markerData.type, markerData.details, markerData.start_date, markerData.end_date, markerData.status, markerData.confirmed, markerData.resolved, markerData.report_date, markerData.corridor, markerData.username, markerData.display_name);
             });
         });
 
+        const infoBox = document.getElementById("infoBox");
 
+        map.controls[google.maps.ControlPosition.LEFT_TOP].push(infoBox);
 
 
         const hazardTypes = ["bad road design", "pothole/bad pavement", "closure", "debris (glass, wet leaves, etc.)", "other"];
         const corridorList = ["", "520 trail", "I-90 trail", "alki trail", "burke gilman trail", "cross kirkland corridor", "eastrail", "east lake sammamish trail", "sammamish river trail", "SODO trail", "lake washington loop (Kirkland)", "lake washington loop (south bellevue/renton)", "lake washington loop (south seattle/central district)"];
 
         // InfoWindow for creating new hazard
+        var isLoggedInText = "";
+        if (user) {
+            isLoggedInText = `<h3>posting as: ${user.displayName}</h3>
+                <input type="checkbox" id="post_anonymously">
+                <label for="post_anonymously">post anonymously</label><br>`;
+        }
+        
+        var infoWindowContentFront = `
+            <h1 style="color: #d32f2f">add hazard</h1>
+            <h3>select hazard type</h3>
+            <select id="hazardTypeSelect" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc;">
+                ${hazardTypes.map(type => `<option value="${type}">${type}</option>`).join('')}
+            </select>
+            <h3>select start date</h3>
+            <input type="date" id="addStartDate"></input>
+            <h3>select end date (leave blank if unknown)</h3>
+            <input type="date" id="addEndDate"></input>
+            <h3>description</h3>
+            <textarea id="addDetails" placeholder="describe the hazard" style="height: 80px;"></textarea>
+            <h3>select bike corridor (if applicable)</h3>
+            <select id="corridorSelect" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc;">
+                ${corridorList.map(type => `<option value="${type}">${type}</option>`).join('')}
+            </select>`;
+        
+        var infoWindowContentBack = `<button id="addHazardBtn">add hazard</button>`;
+
         const newHazardInfoWindow = new google.maps.InfoWindow({
-            content: `
-                <h1 style="color: #d32f2f">add hazard</h1>
-                <h3>select hazard type</h3>
-                <select id="hazardTypeSelect" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc;">
-                    ${hazardTypes.map(type => `<option value="${type}">${type}</option>`).join('')}
-                </select>
-                <h3>select start date</h3>
-                <input type="date" id="addStartDate"></input>
-                <h3>select end date (leave blank if unknown)</h3>
-                <input type="date" id="addEndDate"></input>
-                <h3>description</h3>
-                <textarea id="addDetails" placeholder="describe the hazard" style="height: 80px;"></textarea>
-                <h3>select bike corridor (if applicable)</h3>
-                <select id="corridorSelect" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc;">
-                    ${corridorList.map(type => `<option value="${type}">${type}</option>`).join('')}
-                </select>
-                <button id="addHazardBtn">add hazard</button>
-            `
+            content: infoWindowContentFront + isLoggedInText + infoWindowContentBack
+        }); 
+        onAuthStateChanged(auth, (currentUser) => {
+            var isLoggedInText = "";
+            if (currentUser) {
+                isLoggedInText = `<h3>posting as: ${currentUser.displayName}</h3>
+                    <input type="checkbox" id="post_anonymously">
+                    <label for="post_anonymously">post anonymously</label><br>`;
+            }
+            newHazardInfoWindow.setContent(infoWindowContentFront + isLoggedInText + infoWindowContentBack);
         });
         
-        const infoBox = document.getElementById("infoBox");
-
-        map.controls[google.maps.ControlPosition.LEFT_TOP].push(infoBox); 
 
         // Click event to open InfoWindow for new hazard
         map.addListener("click", (event) => {
@@ -141,13 +156,13 @@
 
         google.maps.event.addListener(newHazardInfoWindow, "domready", function() {
             handleHazardCreation(newHazardInfoWindow);
-        })
+        });
     }
 
     
     function handleHazardCreation(newHazardInfoWindow) {
         const addStartDateBtn = document.getElementById("addStartDate");
-
+        
         //console.log("addStartDateBtn: " + addStartDateBtn);
         if (addStartDateBtn) {
             const today = new Date();
@@ -169,6 +184,8 @@
         if (addHazardBtn) {
             addHazardBtn.addEventListener("click", () => {
                 if (user) {
+                    var post_username = document.getElementById("post_anonymously").checked == true ? "anonymous user" : user.displayName;
+
                     const hazardType = document.getElementById("hazardTypeSelect").value;
                     const details = document.getElementById("addDetails").value;
                     const start_date = document.getElementById("addStartDate").value;
@@ -192,7 +209,9 @@
                         confirmed: 0,
                         resolved: 0,
                         report_date: status === 0 ? new Date().toISOString().slice(0, 10) : null,
-                        corridor: corridor
+                        corridor: corridor,
+                        username: user.displayName,
+                        display_name: post_username
                     };
 
                     const hazardsRef = ref(database, 'hazards');
@@ -200,7 +219,7 @@
                         .then((snapshot) => {
                             console.log("hazard data saved successfully!");
 
-                            createMarker(snapshot.key, hazardData["longitude"], hazardData["latitude"], hazardData["type"], hazardData["details"], hazardData["start_date"], hazardData["end_date"], hazardData['status'], hazardData['confirmed'], hazardData['resolved'], hazardData['report_date'], hazardData['corridor']);
+                            createMarker(snapshot.key, hazardData["longitude"], hazardData["latitude"], hazardData["type"], hazardData["details"], hazardData["start_date"], hazardData["end_date"], hazardData['status'], hazardData['confirmed'], hazardData['resolved'], hazardData['report_date'], hazardData['corridor'], hazardData['username'], hazardData['display_name']);
                         })
                         .catch((error) => {
                             console.error("error writing hazard data:", error);
@@ -247,7 +266,7 @@
     }
     
 
-    function createMarker(id, longitude, latitude, type, details, start_date, end_date, status, confirmed, resolved, report_date, corridor) {
+    function createMarker(id, longitude, latitude, type, details, start_date, end_date, status, confirmed, resolved, report_date, corridor, username, display_name) {
         
         //console.log(latitude, longitude, type);
         const pinScaled = new google.maps.marker.PinElement({
@@ -261,7 +280,7 @@
             content: pinScaled.element
         });
         
-        var corridorHTML = corridor != "" ? '<h5 >corridor: ' + corridor + '</h5>': "";
+        var corridorHTML = corridor != "" ? '<h5>corridor: ' + corridor + '</h5>': "";
         
         
         const commentsRef = ref(database, 'comments/'+id);
@@ -279,6 +298,7 @@
             //console.log(amendmentHTML);
             var reportHTML = `
                 <h1>hazard: ${type}</h1>
+                <h5>reported by: ${display_name}</h5>
                 <h5>expected start: ${start_date}</h5>
                 <h5>expected end: ${end_date}</h5>
                 `+corridorHTML+`
@@ -291,22 +311,14 @@
                     <p style="font-size: smaller; color: #d32f2f;">last reported: ${report_date}</p>`;
             }
             reportHTML += `
-                    <h5>comments</h5>`+amendmentHTML+`
-                    <textarea id="amend_input" placeholder="add a comment" style="height: 80px;"></textarea>
-                    <input type="checkbox" id="amend_anonymously">
-                    <label for="amend_anonymously">comment anonymously</label><br>
-                    <input type="button" id="submitAmendment" value="submit comment" style="margin-top:10px; background-color: #4CAF50; color: white; width: 40%;"><br>`;
-            if (!status) {
-                reportHTML += `
-                    <h5>if you have been here, is this hazard...</h5>
-                    <input type="button" id="confirmedIncrement" value="still present (${confirmed})" style="background-color: #4CAF50; color: white; width: 20%;">
-                    <input type="button" id="resolvedIncrement" value="not present (${resolved})" style="background-color: #f44336; color: white; width: 20%";>`;
-            } else {
-                reportHTML += `
-                    <input type="button" id="reportHazardResolved" value="flag" style="background-color: #f44336; color: white; width: 40%;">`;
-            }
+                    <h5>comments</h5>`+amendmentHTML;
 
-            infoWindow.setContent(reportHTML);
+
+            infoWindow.setContent(reportHTML+createMarkerLoggedInText(user, username, status, confirmed, resolved));
+
+            onAuthStateChanged(auth, (currentUser) => {
+                infoWindow.setContent(reportHTML + createMarkerLoggedInText(currentUser, username, status, confirmed, resolved));
+            });
 
             // Click event to open InfoWindow
             marker.addListener("click", (function(infoWindow) { // Pass infoWindow into an IIFE
@@ -355,12 +367,51 @@
                         }
                     });
                 }
+                onAuthStateChanged(auth, (currentUser) => {
+                    if (currentUser && username == currentUser.displayName) {
+                        document.getElementById("deleteHazard").addEventListener("click", () => {
+                            deleteHazard(id);
+                        });
+                    }
+                });
                 
             });
 
         });
 
         
+    }
+
+    function createMarkerLoggedInText(user, username, status, confirmed, resolved) {
+        var loggedInText = "";
+        var canDeleteText = "";
+        
+        if (user) {
+            loggedInText = `<div style="display: block">`;
+        } else {
+            loggedInText = `<div style="display: none">`;
+        }
+        
+        loggedInText += `
+            <textarea id="amend_input" placeholder="add a comment" style="height: 80px;"></textarea>
+            <input type="checkbox" id="amend_anonymously">
+            <label for="amend_anonymously">comment anonymously</label><br>
+            <input type="button" id="submitAmendment" value="submit comment" style="margin-top:10px; background-color: #4CAF50; color: white; width: 40%;"><br>`;
+        if (!status) {
+            loggedInText += `
+                <h5>if you have been here, is this hazard...</h5>
+                <input type="button" id="confirmedIncrement" value="still present (${confirmed})" style="background-color: #4CAF50; color: white; width: 20%;">
+                <input type="button" id="resolvedIncrement" value="not present (${resolved})" style="background-color: #f44336; color: white; width: 20%";>`;
+        } else {
+            loggedInText += `
+                <input type="button" id="reportHazardResolved" value="flag" style="background-color: #f44336; color: white; width: 40%;">`;
+        }
+
+        if (user && user.displayName == username) {
+            canDeleteText = `<input type="button" id="deleteHazard" value="delete">`;
+        }
+        
+        return loggedInText+canDeleteText+'</div>';
     }
 
 
@@ -448,6 +499,16 @@
         }
     }
 
+    function deleteHazard(id) {
+        console.log("deleting");
+        const hazardRef = ref(database, 'hazards/' + id);
+        remove(hazardRef);
+        const commentsRef = ref(database, 'comments/' + id);
+        remove(commentsRef);
+
+        mapMarkers[id].setMap(null);
+    }
+
     
 
     onMount(async () => {
@@ -484,6 +545,9 @@
     <p>in a <a href="https://web.pdx.edu/~jdill/Types_of_Cyclists_PSUWorkingPaper.pdf">2012 portland state university study</a>, only ~10% of cyclists consider themselves as enthused & confident / strong & fearless.
     many don't cycle because of the <b>unpredictability of bike lanes and roads.</b></p>
     <p>cyclealerts is my attempt at reducing the local knowledge threshold for the ~50% of interested but concerned cyclists.</p>
+    <p><b>white markers</b> denote ongoing alerts.</p>
+    <p><b>yellow markers</b> denote alerts that are expired or flagged as resolved. after 7 days, they will be archived unless the majority suggests the hazard is still present.</p>
+    
     
 </div>
 
