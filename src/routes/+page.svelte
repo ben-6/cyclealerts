@@ -100,7 +100,7 @@
         map.controls[google.maps.ControlPosition.LEFT_TOP].push(infoBox);
 
 
-        const hazardTypes = ["bad road design", "pothole/bad pavement", "closure", "debris (glass, wet leaves, etc.)", "other"];
+        const hazardTypes = ["bad road design", "pothole/bad pavement", "closure", "debris (glass, wet leaves, etc.)"];
         const corridorList = ["", "520 trail", "I-90 trail", "alki trail", "burke gilman trail", "cross kirkland corridor", "eastrail", "east lake sammamish trail", "sammamish river trail", "SODO trail", "lake washington loop (Kirkland)", "lake washington loop (south bellevue/renton)", "lake washington loop (south seattle/central district)"];
 
         // InfoWindow for creating new hazard
@@ -113,15 +113,16 @@
         
         var infoWindowContentFront = `
             <h1 style="color: #d32f2f">add hazard</h1>
-            <h3>select hazard type</h3>
-            <select id="hazardTypeSelect" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc;">
-                ${hazardTypes.map(type => `<option value="${type}">${type}</option>`).join('')}
-            </select>
+            <h3>give a name for the hazard (or use one of the dropdown options)</h3>
+            <input type="text" list="hazardTypeDataList" id="hazardTypeInput" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc;">
+            <datalist id="hazardTypeDataList">
+                ${hazardTypes.map(type => `<option value="${type}">`).join('')}
+            </datalist>
             <h3>select start date</h3>
             <input type="date" id="addStartDate"></input>
             <h3>select end date (leave blank if unknown)</h3>
             <input type="date" id="addEndDate"></input>
-            <h3>description</h3>
+            <h3>description (optional)</h3>
             <textarea id="addDetails" placeholder="describe the hazard" style="height: 80px;"></textarea>
             <h3>select bike corridor (if applicable)</h3>
             <select id="corridorSelect" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ccc;">
@@ -138,7 +139,7 @@
             if (currentUser) {
                 isLoggedInText = `<h3>posting as: ${currentUser.displayName}</h3>
                     <input type="checkbox" id="post_anonymously">
-                    <label for="post_anonymously">post anonymously</label><br>`;
+                    <label for="post_anonymously">post anonymously</label><br><br>`;
             }
             newHazardInfoWindow.setContent(infoWindowContentFront + isLoggedInText + infoWindowContentBack);
         });
@@ -546,7 +547,7 @@
     many don't cycle because of the <b>unpredictability of bike lanes and roads.</b></p>
     <p>cyclealerts is my attempt at reducing the local knowledge threshold for the ~50% of interested but concerned cyclists.</p>
     <p><b>white markers</b> denote ongoing alerts.</p>
-    <p><b>yellow markers</b> denote alerts that are expired or flagged as resolved. after 7 days, they will be archived unless the majority suggests the hazard is still present.</p>
+    <p><b>yellow markers</b> denote alerts that are expired or flagged as resolved. after 7 days, they will be archived unless a majority suggests the hazard is still present.</p>
     
     
 </div>
