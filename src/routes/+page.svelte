@@ -5,7 +5,7 @@
 <script>
     import { onMount } from 'svelte';
     import { initializeApp, getApps } from 'firebase/app' 
-    import { getDatabase, ref, onValue, query, orderByChild, update, push, runTransaction, serverTimestamp, remove } from 'firebase/database'
+    import { getDatabase, ref, onValue, query, orderByChild, update, push, runTransaction, serverTimestamp, remove, set } from 'firebase/database'
     import { GoogleAuthProvider, getAuth, signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
 
     const firebaseConfig = {
@@ -45,6 +45,11 @@
     };
     onAuthStateChanged(auth, (currentUser) => {
         user = currentUser;
+        if (user) {
+            onValue(ref(database, `users/${user.uid}/contributions`), (snapshot) => {
+                contributions = snapshot.val() || 0;
+            });
+        }
     });
 
 
@@ -52,10 +57,9 @@
     let mapContainer;
     let currentInfoWindow = null;
     let mapMarkers = {};
+    let contributions = 0;
 
     function initMap() {
-        const { AdvancedMarkerElement, PinElement } = google.maps.importLibrary("marker"); // Import AdvancedMarker
-
         map = new google.maps.Map(mapContainer, {
             center: { lat: 47.608027, lng: -122.308954 },
             zoom: 12,
@@ -88,7 +92,7 @@
                 const markerData = childSnapshot.val();
 
                 if (mapMarkers[childSnapshot.key]) {
-                    mapMarkers[childSnapshot.key].setMap(null);
+                    mapMarkers[childSnapshot.key].map = null;
                 }
                 
                 createMarker(childSnapshot.key, markerData.longitude, markerData.latitude, markerData.type, markerData.details, markerData.start_date, markerData.end_date, markerData.status, markerData.confirmed, markerData.resolved, markerData.report_date, markerData.corridor, markerData.username, markerData.display_name);
@@ -187,7 +191,7 @@
                 if (user) {
                     var post_username = document.getElementById("post_anonymously").checked == true ? "anonymous user" : user.displayName;
 
-                    const hazardType = document.getElementById("hazardTypeSelect").value;
+                    const hazardType = document.getElementById("hazardTypeInput").value;
                     const details = document.getElementById("addDetails").value;
                     const start_date = document.getElementById("addStartDate").value;
                     const end_date = document.getElementById("addEndDate").value;
@@ -219,7 +223,8 @@
                     push(hazardsRef, hazardData)
                         .then((snapshot) => {
                             console.log("hazard data saved successfully!");
-
+                            contributions ++;
+                            set(ref(database, `users/${user.uid}/contributions`), contributions);
                             createMarker(snapshot.key, hazardData["longitude"], hazardData["latitude"], hazardData["type"], hazardData["details"], hazardData["start_date"], hazardData["end_date"], hazardData['status'], hazardData['confirmed'], hazardData['resolved'], hazardData['report_date'], hazardData['corridor'], hazardData['username'], hazardData['display_name']);
                         })
                         .catch((error) => {
@@ -274,7 +279,7 @@
             background: status ? '#ffffff' : '#ffff00',
         });
 
-        const marker = new google.maps.marker.AdvancedMarkerElement({
+        mapMarkers[id] = new google.maps.marker.AdvancedMarkerElement({
             map: map,
             position: { lng: longitude, lat: latitude },
             title: type,
@@ -322,17 +327,16 @@
             });
 
             // Click event to open InfoWindow
-            marker.addListener("click", (function(infoWindow) { // Pass infoWindow into an IIFE
+            mapMarkers[id].addListener("click", (function(infoWindow) { // Pass infoWindow into an IIFE
                 return () => {
-                if (currentInfoWindow) {
-                    currentInfoWindow.close();
-                }
-                infoWindow.open(map, marker); 
-                currentInfoWindow = infoWindow;
+                    if (currentInfoWindow) {
+                        currentInfoWindow.close();
+                    }
+                    infoWindow.open(map, mapMarkers[id]); 
+                    currentInfoWindow = infoWindow;
                 };
             })(infoWindow));
 
-            mapMarkers[id] = marker;
 
 
             google.maps.event.addListenerOnce(infoWindow, 'domready', () => {
@@ -401,15 +405,14 @@
         if (!status) {
             loggedInText += `
                 <h5>if you have been here, is this hazard...</h5>
-                <input type="button" id="confirmedIncrement" value="still present (${confirmed})" style="background-color: #4CAF50; color: white; width: 20%;">
-                <input type="button" id="resolvedIncrement" value="not present (${resolved})" style="background-color: #f44336; color: white; width: 20%";>`;
+                <input type="button" id="confirmedIncrement" value="still present (${confirmed})" style="background-color: #4CAF50; color: white; width: 20%;display: inline-block;"><input type="button" id="resolvedIncrement" value="not present (${resolved})" style="background-color: #f44336; color: white; width: 20%";display: inline-block;>`;
         } else {
             loggedInText += `
                 <input type="button" id="reportHazardResolved" value="flag" style="background-color: #f44336; color: white; width: 40%;">`;
         }
 
         if (user && user.displayName == username) {
-            canDeleteText = `<input type="button" id="deleteHazard" value="delete">`;
+            canDeleteText = `<br><input type="button" id="deleteHazard" value="delete" style="width: 40%;">`;
         }
         
         return loggedInText+canDeleteText+'</div>';
@@ -506,8 +509,7 @@
         remove(hazardRef);
         const commentsRef = ref(database, 'comments/' + id);
         remove(commentsRef);
-
-        mapMarkers[id].setMap(null);
+        mapMarkers[id].map = null;
     }
 
     
@@ -524,7 +526,6 @@
             script.onload = initMap; // Initialize the map once the script is loaded
             document.head.appendChild(script);
         }
-        
     });
 </script>
 
@@ -536,11 +537,10 @@
     <h1>click on the map to mark a hazard.</h1>
     {#if user}
         <p>welcome, {user.displayName}!</p>
-        <button on:click={signOutUser}>sign out.</button>
-
-        
+        <p>[{contributions}] contributions</p>
+        <button class="user-auth-button" on:click={signOutUser}>sign out.</button>
     {:else}
-        <button on:click={signInWithGoogle}>sign in with google</button>
+        <button class="user-auth-button" on:click={signInWithGoogle}>sign in with google</button>
     {/if}
 
     <p>in a <a href="https://web.pdx.edu/~jdill/Types_of_Cyclists_PSUWorkingPaper.pdf">2012 portland state university study</a>, only ~10% of cyclists consider themselves as enthused & confident / strong & fearless.
@@ -569,13 +569,8 @@
         
     }
 
-    .user-auth {
-        text-align: center;
-        margin-bottom: 30px;
-    }
-
-    .user-auth button {
-        background-color: #007bff;
+    .user-auth-button {
+        background-color: #6db4ff;
         color: white;
         padding: 10px 20px;
         border: none;
