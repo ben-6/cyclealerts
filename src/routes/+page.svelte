@@ -60,6 +60,7 @@
     let contributions = 0;
 
     function initMap() {
+        const {PinElement, AdvancedMarkerElement} = google.maps.importLibrary("marker");
         map = new google.maps.Map(mapContainer, {
             center: { lat: 47.608027, lng: -122.308954 },
             zoom: 12,
