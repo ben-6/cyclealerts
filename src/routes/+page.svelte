@@ -105,7 +105,7 @@
         map.controls[google.maps.ControlPosition.LEFT_TOP].push(infoBox);
 
 
-        const hazardTypes = ["bad road design", "pothole/bad pavement", "closure", "debris (glass, wet leaves, etc.)"];
+        const hazardTypes = ["bad road design", "bike lane ends", "pothole/bad pavement", "closure", "railroad crossing", "bad visibility", "door zone hazard"];
         const corridorList = ["", "520 trail", "I-90 trail", "alki trail", "burke gilman trail", "cross kirkland corridor", "eastrail", "east lake sammamish trail", "sammamish river trail", "SODO trail", "lake washington loop (Kirkland)", "lake washington loop (south bellevue/renton)", "lake washington loop (south seattle/central district)"];
 
         // InfoWindow for creating new hazard
