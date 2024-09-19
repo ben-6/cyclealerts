@@ -106,7 +106,7 @@
 
 
         const hazardTypes = ["bad road design", "bike lane ends", "pothole/bad pavement", "closure", "railroad crossing", "bad visibility", "door zone hazard"];
-        const corridorList = ["", "520 trail", "I-90 trail", "alki trail", "burke gilman trail", "cross kirkland corridor", "eastrail", "east lake sammamish trail", "sammamish river trail", "SODO trail", "lake washington loop (Kirkland)", "lake washington loop (south bellevue/renton)", "lake washington loop (south seattle/central district)"];
+        const corridorList = ["", "520 trail", "I-90 trail", "alki trail", "burke gilman trail", "cedar river trail", "cross kirkland corridor", "downtown bellevue (108th, 112th, ...)", "downtown seattle (2nd, 4th, ...)", "eastrail", "east lake sammamish trail", "sammamish river trail", "ship canal trail/westlake cycletrack", "lake washington loop (Kirkland)", "lake washington loop (south bellevue/renton)", "lake washington loop (south seattle/central district)"];
 
         // InfoWindow for creating new hazard
         var isLoggedInText = "";
