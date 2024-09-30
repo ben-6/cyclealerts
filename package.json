@@ -20,7 +20,10 @@
 	},
 	"type": "module",
 	"dependencies": {
+		"@fortawesome/free-solid-svg-icons": "^6.6.0",
+		"@fortawesome/svelte-fontawesome": "^0.2.2",
 		"@googlemaps/js-api-loader": "^1.16.8",
-		"firebase": "^10.12.5"
+		"firebase": "^10.12.5",
+		"mapbox-gl": "^3.6.0"
 	}
 }
