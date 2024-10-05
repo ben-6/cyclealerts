@@ -72,6 +72,11 @@
 
     let amend_input = '';
 
+    let showMenu = false;
+    let isMobileSize = false;
+    let innerWidth = 0
+    let innerHeight = 0
+
     class Hazard {
         constructor(id, longitude, latitude, name, description, status, confirmed, resolved, report_date, corridor, username) {
             this.id = id;
@@ -324,6 +329,17 @@
             });
         }
         
+        map.addControl(
+            new mapboxgl.GeolocateControl({
+                positionOptions: {
+                    enableHighAccuracy: true
+                },
+                trackUserLocation: true,
+                showUserHeading: true,
+                showAccuracyCircle: true
+            }),
+            'bottom-right'
+        );
         
         const hazardsRef = ref(database, 'hazards');
         onValue(hazardsRef, (snapshot) => {
@@ -374,14 +390,23 @@
         }
     }
 
+    function toggleMenu() {
+        showMenu = !showMenu;
+    }
+
+    $: if (innerWidth > 768) {
+        isMobileSize = false;
+    } else {
+        isMobileSize = true;
+    }
 
 </script>
 
+<svelte:window bind:innerWidth bind:innerHeight />
 
-
-<div id="map-container"></div>
-<div class="sidebar">
-    <h1>click on the map to mark a hazard.</h1>
+{#if isMobileSize}
+<div class="top-nav">
+    <button class="mobile-menu-button" on:click={toggleMenu}>Menu</button>
     {#if user}
         <p>welcome, {user.displayName}!</p>
         <p>[{contributions}] contributions</p>
@@ -389,17 +414,37 @@
     {:else}
         <button class="user-auth-button" on:click={signInWithGoogle}>sign in with google</button>
     {/if}
-    <hr>
-    <p>in a <a href="https://web.pdx.edu/~jdill/Types_of_Cyclists_PSUWorkingPaper.pdf">2012 portland state university study</a>, only ~10% of cyclists consider themselves as enthused & confident / strong & fearless.
-    many don't cycle because of the <b>unpredictability of bike lanes and roads.</b></p>
-    <p>cyclealerts is my attempt at reducing the local knowledge threshold for the ~50% of interested but concerned cyclists.</p>
-    <p><b>black markers</b> denote ongoing alerts.</p>
-    <p><b>red markers</b> denote alerts that are expired or flagged as resolved. after 7 days, they will be archived unless a majority suggests the hazard is still present.</p>
-
-    <input type="checkbox" id="checkbox-bgt"> 
-    <label for="checkbox-bgt">burke gilman trail</label>
-
 </div>
+{/if}
+
+<div id="map-container"></div>
+
+{#if !isMobileSize || showMenu}
+    <div class="sidebar">
+        {#if isMobileSize}
+            <button class="close-button" on:click={toggleMenu}>X</button>
+        {:else}
+            <h1>click on the map to mark a hazard.</h1>
+            {#if user}
+                <p>welcome, {user.displayName}!</p>
+                <p>[{contributions}] contributions</p>
+                <button class="user-auth-button" on:click={signOutUser}>sign out.</button>
+            {:else}
+                <button class="user-auth-button" on:click={signInWithGoogle}>sign in with google</button>
+            {/if}
+            <hr>
+        {/if}
+
+        <h3>info:</h3>
+        <p><b>black markers</b> denote ongoing alerts.</p>
+        <p><b>red markers</b> denote alerts that are expired or flagged as resolved. after 7 days, they will be archived unless a majority suggests the hazard is still present.</p>
+        
+        <hr>
+        <h3>regional trails and bicycle corridors:</h3>
+        <input type="checkbox" id="checkbox-bgt"> 
+        <label for="checkbox-bgt">burke gilman trail</label>
+    </div>
+{/if}
 
 {#if currentWindowOpen} 
     <div class="floating-window">
@@ -474,6 +519,23 @@
 
 
 <style>
+    .top-nav {
+        background-color: #f0f0f0; 
+        box-sizing: border-box;
+        padding: 20px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        z-index: 4;
+        left: 0;
+        width: 100%;
+        top: 0;
+        height: 60px;
+        margin-top:0%;
+        position: fixed;
+        overflow: hidden;
+    }
+
     #map-container {
         height: 100vh;
         position: absolute;
@@ -493,9 +555,7 @@
         overflow-x: hidden;
         overflow-y: auto;
         box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-    }
-    .sidebar a:hover {
-        background-color: #ddd;
+        background-color: white;
     }
 
     .floating-window {
@@ -513,13 +573,38 @@
         border-radius: 5px;
         box-sizing: border-box;
         z-index: 1;
+        background-color:white;
     }
 
     .close-button {
         position: absolute;
-        top: 10px;
-        right: 10px;
+        top: 20px;
+        right: 20px;
         cursor: pointer;
+    }
+
+    @media (max-width: 768px) { 
+        #map-container {
+            left: 0%;
+            width: 100%;
+            top: 0%;
+            height: 100%;
+        }
+        .sidebar {
+            left: 0%;
+            width: 100%;
+            top: 60px;
+            height: calc(100%-60px);
+            z-index: 3;
+        }
+
+        .floating-window {
+            left: 0%;
+            width: 100%;
+            top: 80%;
+            height: 40%;
+        }
+        
     }
 
 </style>
