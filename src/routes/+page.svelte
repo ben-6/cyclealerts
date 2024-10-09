@@ -76,6 +76,9 @@
     let isMobileSize = false;
     let innerWidth = 0
     let innerHeight = 0
+    
+    let loadingCurrentLocation = false;
+
 
     class Hazard {
         constructor(id, longitude, latitude, name, description, status, confirmed, resolved, report_date, corridor, username) {
@@ -357,28 +360,51 @@
         });
 
         map.on('click', (e) => {
-            newMarkerCoords = e.lngLat;
-            selectedHazard = null;
-            currentWindowOpen = "create hazard";
-        
-            if (tempMarker) {
-                tempMarker.remove();
-            }
-
-            tempMarker = new mapboxgl.Marker({ color: 'blue', draggable: true })
-                .setLngLat(newMarkerCoords)
-                .addTo(map);
-
-            map.flyTo({
-                center: tempMarker.getLngLat(),
-                zoom: 16,
-            });
-            
+            openHazardForm(e.lngLat);
         });
 
         displayCorridor(map, "bgt.geojson", 'layer-bgt', 'checkbox-bgt');
 
     });
+
+    function openHazardForm(useLocation) {
+        console.log(useLocation);
+        if (useLocation != null) {
+            newMarkerCoords = useLocation;
+            setTempMarker();
+        } else {
+            if (navigator.geolocation) {
+                loadingCurrentLocation = true;
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { longitude, latitude } = position.coords;
+                        newMarkerCoords = new mapboxgl.LngLat(longitude, latitude);
+                        setTempMarker();
+                        loadingCurrentLocation = false;
+                    });
+            }
+        }
+        
+    }
+
+    function setTempMarker() {
+        selectedHazard = null;
+        currentWindowOpen = "create hazard";
+        if (tempMarker) {
+            tempMarker.remove();
+        }
+
+        console.log(newMarkerCoords);
+
+        tempMarker = new mapboxgl.Marker({ color: 'blue', draggable: true })
+            .setLngLat(newMarkerCoords)
+            .addTo(map);
+
+        map.flyTo({
+            center: tempMarker.getLngLat(),
+            zoom: 16,
+        });
+    }
 
 
     function closeFloatingWindow() {
@@ -516,7 +542,15 @@
     </div>
 {/if}
 
-
+{#if isMobileSize}
+    <div class="quick-add-marker-container">
+        {#if !loadingCurrentLocation}
+            <button class="quick-add-marker" on:click={() => openHazardForm(null)}>add marker at current location</button>
+        {:else}
+            <button class="quick-add-marker">getting location...</button>
+        {/if}
+    </div>
+{/if}
 
 <style>
     .top-nav {
@@ -526,7 +560,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        z-index: 4;
+        z-index: 5;
         left: 0;
         width: 100%;
         top: 0;
@@ -549,7 +583,7 @@
         left: 0;
         height: 100%;
         width: 25%;
-        z-index: 1;
+        z-index: 4;
         padding: 10px;
         box-sizing: border-box;
         overflow-x: hidden;
@@ -572,8 +606,7 @@
         box-shadow: 5px 0 5px rgba(0, 0, 0, 0.1);
         border-radius: 5px;
         box-sizing: border-box;
-        z-index: 1;
-        background-color:white;
+        z-index: 3;
     }
 
     .close-button {
@@ -604,7 +637,25 @@
             top: 80%;
             height: 40%;
         }
-        
+
+    }
+
+    .quick-add-marker-container {
+        display: flex;
+        justify-content: center; 
+        width: 100%;
+    }
+
+    .quick-add-marker {
+        position: absolute;
+        bottom: 70px;
+        width: 80%;
+        height: 50px;
+        z-index: 2;
+        box-shadow: 5px 0 5px rgba(0, 0, 0, 0.1);
+        border-radius: 5px;
+        box-sizing: border-box;
+        padding: 0 10px; 
     }
 
 </style>
