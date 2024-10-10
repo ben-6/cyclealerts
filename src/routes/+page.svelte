@@ -343,6 +343,8 @@
             }),
             'bottom-right'
         );
+
+        map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
         
         const hazardsRef = ref(database, 'hazards');
         onValue(hazardsRef, (snapshot) => {
@@ -648,9 +650,9 @@
 
     .quick-add-marker {
         position: absolute;
-        bottom: 70px;
-        width: 80%;
-        height: 50px;
+        bottom: 60px;
+        width: 75%;
+        height: 60px;
         z-index: 2;
         box-shadow: 5px 0 5px rgba(0, 0, 0, 0.1);
         border-radius: 5px;
