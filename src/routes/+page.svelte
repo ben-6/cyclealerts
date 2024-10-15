@@ -495,12 +495,13 @@
 
         <h3>info:</h3>
         <p><b>black markers</b> denote ongoing alerts.</p>
-        <p><b>red markers</b> denote alerts that are expired or flagged as resolved. after 7 days, they will be archived unless a majority suggests the hazard is still present.</p>
+        <p><b>red markers</b> denote alerts that are expired or flagged as resolved. users can vote on whether the hazard is still present or gone by clicking on the marker.</p>
         
-        <hr>
+
+        <!-- <hr>
         <h3>regional trails and bicycle corridors:</h3>
         <input type="checkbox" id="checkbox-bgt"> 
-        <label for="checkbox-bgt">burke gilman trail</label>
+        <label for="checkbox-bgt">burke gilman trail</label> -->
     </div>
 {/if}
 
