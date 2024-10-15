@@ -5,7 +5,7 @@
 <script>
     import { onMount } from 'svelte';
     import { initializeApp, getApps } from 'firebase/app' 
-    import { getDatabase, ref, onValue, query, orderByChild, update, push, runTransaction, serverTimestamp, remove, set, off } from 'firebase/database'
+    import { getDatabase, ref, onValue, query, orderByChild, update, push, runTransaction, serverTimestamp, remove, set, off, child } from 'firebase/database'
     import { GoogleAuthProvider, getAuth, signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
     import mapboxgl from 'mapbox-gl';
 
@@ -78,6 +78,7 @@
     let innerHeight = 0
     
     let loadingCurrentLocation = false;
+    let pageLoaded = false;
 
 
     class Hazard {
@@ -197,11 +198,28 @@
         manageCommentListener(null);
     }
 
-    function reportHazardResolved() {
+    function flagHazard() {
         const hazardRef = ref(database, 'hazards/' + selectedHazard.id);
 
         // Update a single property
         update(hazardRef, { status: 0, confirmed: 0, resolved: 0, report_date: new Date().toISOString().slice(0, 10)})
+            .then(() => {
+                console.log("hazard data updated successfully!");
+            })
+            .catch((error) => {
+                console.error("error updating hazard data:", error);
+            });
+
+        selectedHazard = null;
+        currentWindowOpen = null;
+        
+    }
+
+    function unflagHazard() {
+        const hazardRef = ref(database, 'hazards/' + selectedHazard.id);
+
+        // Update a single property
+        update(hazardRef, { status: 1, confirmed: 0, resolved: 0})
             .then(() => {
                 console.log("hazard data updated successfully!");
             })
@@ -264,7 +282,6 @@
     }
 
     function deleteHazard() {
-        console.log("deleting");
         const hazardRef = ref(database, 'hazards/' + selectedHazard.id);
         remove(hazardRef);
         const commentsRef = ref(database, 'comments/' + selectedHazard.id);
@@ -310,6 +327,7 @@
         }
 
     onMount(() => {
+        pageLoaded = true;
         map = new mapboxgl.Map({
             container: "map-container",
             style: 'mapbox://styles/mapbox/streets-v12',
@@ -349,15 +367,30 @@
         const hazardsRef = ref(database, 'hazards');
         onValue(hazardsRef, (snapshot) => {
             snapshot.forEach((childSnapshot) => {
-                const markerData = childSnapshot.val();
-
-                if (mapMarkers[childSnapshot.key]) {
-                    mapMarkers[childSnapshot.key].remove();
-                    delete mapMarkers[childSnapshot.key];
-                }
                 
-                const hazard = new Hazard(childSnapshot.key, markerData.longitude, markerData.latitude, markerData.name, markerData.description, markerData.status, markerData.confirmed, markerData.resolved, markerData.report_date, markerData.corridor, markerData.username)
-                createMarker(hazard, markerData.status == 1 ? "black" : "red");
+                if (!Object.keys(mapMarkers).includes(childSnapshot.key)) {
+                //     const hazard = new Hazard(childSnapshot.key, markerData.longitude, markerData.latitude, markerData.name, markerData.description, markerData.status, markerData.confirmed, markerData.resolved, markerData.report_date, markerData.corridor, markerData.username)
+                //     createMarker(hazard, markerData.status == 1 ? "black" : "red");
+                
+                
+                    const markerRef = child(hazardsRef, childSnapshot.key);
+                    onValue(markerRef, (markerSnapshot) => {
+                        const markerData = markerSnapshot.val();
+                        if (markerData) {
+                            if (mapMarkers[markerSnapshot.key]) {
+                                mapMarkers[markerSnapshot.key].remove();
+                                delete mapMarkers[markerSnapshot.key];
+                            } 
+                            
+                            const hazard = new Hazard(markerSnapshot.key, markerData.longitude, markerData.latitude, markerData.name, markerData.description, markerData.status, markerData.confirmed, markerData.resolved, markerData.report_date, markerData.corridor, markerData.username)
+                            createMarker(hazard, markerData.status == 1 ? "black" : "red");
+                        }
+                        
+                    });
+
+                    //off(hazardsRef);
+                }
+
             });
         });
 
@@ -370,7 +403,6 @@
     });
 
     function openHazardForm(useLocation) {
-        console.log(useLocation);
         if (useLocation != null) {
             newMarkerCoords = useLocation;
             setTempMarker();
@@ -395,8 +427,6 @@
         if (tempMarker) {
             tempMarker.remove();
         }
-
-        console.log(newMarkerCoords);
 
         tempMarker = new mapboxgl.Marker({ color: 'blue', draggable: true })
             .setLngLat(newMarkerCoords)
@@ -509,10 +539,13 @@
                     <h5>if you have been here, is this hazard...</h5>
                     <button on:click={confirmedIncrement} style="width: 50%;display: inline-block;">still present ({selectedHazard.confirmed})</button><button on:click={resolvedIncrement} style="width: 50%;display: inline-block;">not present ({selectedHazard.resolved})</button>
                 {:else}
-                    <button on:click={reportHazardResolved} style="width: 100%;">flag</button>
+                    <button on:click={flagHazard} style="width: 100%;">flag</button>
                 {/if}
                 <br>
                 {#if user.displayName == selectedHazard.username}
+                    {#if !selectedHazard.status}
+                        <button on:click={unflagHazard} style="width: 100%;">withdraw flag</button>
+                    {/if}
                     <button on:click={deleteHazard} style="width: 100%;">delete</button>
                 {/if}
             
@@ -544,7 +577,7 @@
     </div>
 {/if}
 
-{#if isMobileSize}
+{#if isMobileSize && pageLoaded}
     <div class="quick-add-marker-container">
         {#if !loadingCurrentLocation}
             <button class="quick-add-marker" on:click={() => openHazardForm(null)}>add marker at current location</button>
