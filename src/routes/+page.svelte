@@ -103,7 +103,7 @@
     }
 
     const hazardTypes = ["bad road design", "bike lane ends", "pothole/bad pavement", "closure", "railroad crossing", "bad visibility", "door zone hazard"];
-    const corridorList = ["", "520 trail", "I-90 trail", "alki trail/east marginal way", "burke gilman trail", "cedar river trail", "downtown bellevue (108th, ...)", "downtown seattle (2nd, ...)", "eastrail/cross kirkland corridor", "east lake sammamish trail", "sammamish river trail", "ship canal trail/westlake cycletrack", "lake washington loop (Kirkland)", "lake washington loop (south bellevue/renton)", "lake washington loop (south seattle/central district)"];
+    const corridorList = ["", "520 trail", "i-90 trail", "alki trail/east marginal way", "burke gilman trail", "downtown bellevue (108th)", "downtown seattle (2nd/bell)", "eastrail/cross kirkland corridor", "east lake sammamish trail", "sammamish river trail", "ship canal trail/westlake cycletrack", "lake washington loop (kirkland)", "lake washington loop (south bellevue/renton)", "lake washington loop (south seattle/central district)"];
 
     mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_API_KEY;
 
@@ -399,8 +399,19 @@
             openHazardForm(e.lngLat);
         });
 
+        displayCorridor(map, "520.geojson", 'layer-520', 'checkbox-520');
+        displayCorridor(map, "i-90.geojson", 'layer-90', 'checkbox-90');
+        displayCorridor(map, "alki.geojson", 'layer-alki', 'checkbox-alki');
         displayCorridor(map, "bgt.geojson", 'layer-bgt', 'checkbox-bgt');
-
+        displayCorridor(map, "dt-bellevue.geojson", 'layer-dt-bellevue', 'checkbox-dt-bellevue');
+        displayCorridor(map, "dt-seattle.geojson", 'layer-dt-seattle', 'checkbox-dt-seattle');
+        displayCorridor(map, "ckc.geojson", 'layer-ckc', 'checkbox-ckc');
+        displayCorridor(map, "elst.geojson", 'layer-elst', 'checkbox-elst');
+        displayCorridor(map, "srt.geojson", 'layer-srt', 'checkbox-srt');
+        displayCorridor(map, "westlake-cycle.geojson", 'layer-westlake-cycle', 'checkbox-westlake-cycle');
+        displayCorridor(map, "lwl-kirkland.geojson", 'layer-lwl-kirkland', 'checkbox-lwl-kirkland');
+        displayCorridor(map, "lwl-renton.geojson", 'layer-lwl-renton', 'checkbox-lwl-renton');
+        displayCorridor(map, "lwl-south-seattle.geojson", 'layer-lwl-south-seattle', 'checkbox-lwl-south-seattle');
     });
 
     function openHazardForm(useLocation) {
@@ -495,15 +506,39 @@
         {/if}
 
         <h3>info:</h3>
-        <p>click on the map to mark a hazard. enter a date to </p>
+        <p>click on the map to mark a hazard. for closures and scheduled hazards, enter an end date to the best of your knowledge. otherwise, leave it blank.</p>
         <p><b>black markers</b> denote ongoing alerts.</p>
         <p><b>red markers</b> denote alerts that are expired or flagged as resolved. users can vote on whether the hazard is still present or gone by clicking on the marker.</p>
         
 
-        <!-- <hr>
+        <hr>
         <h3>regional trails and bicycle corridors:</h3>
+        <input type="checkbox" id="checkbox-520"> 
+        <label for="checkbox-520">520 trail</label><br>
+        <input type="checkbox" id="checkbox-90"> 
+        <label for="checkbox-90">i-90 trail</label><br>
+        <input type="checkbox" id="checkbox-alki"> 
+        <label for="checkbox-alki">alki trail/east marginal way</label><br>
         <input type="checkbox" id="checkbox-bgt"> 
-        <label for="checkbox-bgt">burke gilman trail</label> -->
+        <label for="checkbox-bgt">burke gilman trail</label><br>
+        <input type="checkbox" id="checkbox-dt-bellevue"> 
+        <label for="checkbox-dt-bellevue">downtown bellevue (108th)</label><br>
+        <input type="checkbox" id="checkbox-dt-seattle"> 
+        <label for="checkbox-dt-seattle">downtown seattle (2nd, bell)</label><br>
+        <input type="checkbox" id="checkbox-ckc"> 
+        <label for="checkbox-ckc">eastrail/cross kirkland corridor</label><br>
+        <input type="checkbox" id="checkbox-elst"> 
+        <label for="checkbox-elst">east lake sammamish trail</label><br>
+        <input type="checkbox" id="checkbox-srt"> 
+        <label for="checkbox-srt">sammamish river trail</label><br>
+        <input type="checkbox" id="checkbox-westlake-cycle"> 
+        <label for="checkbox-westlake-cycle">ship canal trail/westlake cycletrack</label><br>
+        <input type="checkbox" id="checkbox-lwl-kirkland"> 
+        <label for="checkbox-lwl-kirkland">lake washington loop (kirkland)</label><br>
+        <input type="checkbox" id="checkbox-lwl-renton"> 
+        <label for="checkbox-lwl-renton">lake washington loop (south bellevue/renton)</label><br>
+        <input type="checkbox" id="checkbox-lwl-south-seattle"> 
+        <label for="checkbox-lwl-south-seattle">lake washington loop (south seattle/central district)</label>
     </div>
 {/if}
 
