@@ -8,6 +8,7 @@
     import { getDatabase, ref, onValue, query, orderByChild, update, push, runTransaction, serverTimestamp, remove, set, off, child } from 'firebase/database'
     import { GoogleAuthProvider, getAuth, signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
     import mapboxgl from 'mapbox-gl';
+    import '../global.css';
 
 
     const firebaseConfig = {
@@ -494,6 +495,7 @@
         {/if}
 
         <h3>info:</h3>
+        <p>click on the map to mark a hazard. enter a date to </p>
         <p><b>black markers</b> denote ongoing alerts.</p>
         <p><b>red markers</b> denote alerts that are expired or flagged as resolved. users can vote on whether the hazard is still present or gone by clicking on the marker.</p>
         
