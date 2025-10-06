@@ -58,6 +58,7 @@
 
     let map;
     let mapMarkers = {};
+    let hazardData = {}; // Store hazard objects by ID
     let contributions = 0;
     let selectedHazard = null;
     let tempMarker = null;
@@ -77,9 +78,13 @@
     let isMobileSize = false;
     let innerWidth = 0
     let innerHeight = 0
-    
+
     let loadingCurrentLocation = false;
     let pageLoaded = false;
+
+    // Corridor filter state
+    let selectedCorridors = new Set();
+    let filterActive = false;
 
 
     class Hazard {
@@ -156,14 +161,32 @@
         
     }
 
+    function shouldShowHazard(hazard) {
+        // If no corridors are selected, show all hazards
+        if (selectedCorridors.size === 0) {
+            return true;
+        }
+        // Only show hazards that match selected corridors
+        return hazard.corridor && selectedCorridors.has(hazard.corridor);
+    }
+
     function createMarker(hazard, color) {
-        mapMarkers[hazard.id] = new mapboxgl.Marker({color: color})
-            .setLngLat(hazard.getCoords())
-            .addTo(map);
-        
-        mapMarkers[hazard.id].getElement().addEventListener('click', (e) => {
+        const marker = new mapboxgl.Marker({color: color})
+            .setLngLat(hazard.getCoords());
+
+        // Store hazard data for filtering
+        hazardData[hazard.id] = hazard;
+
+        // Only add to map if it should be visible
+        if (shouldShowHazard(hazard)) {
+            marker.addTo(map);
+        }
+
+        mapMarkers[hazard.id] = marker;
+
+        marker.getElement().addEventListener('click', (e) => {
             map.flyTo({
-                center: mapMarkers[hazard.id].getLngLat(),
+                center: marker.getLngLat(),
                 zoom: 16,
             });
 
@@ -174,7 +197,31 @@
                 tempMarker.remove();
             }
             e.stopPropagation();
-        });        
+        });
+    }
+
+    function updateMarkerVisibility() {
+        Object.entries(mapMarkers).forEach(([id, marker]) => {
+            const hazard = hazardData[id];
+            if (hazard) {
+                if (shouldShowHazard(hazard)) {
+                    marker.addTo(map);
+                } else {
+                    marker.remove();
+                }
+            }
+        });
+    }
+
+    function handleCorridorToggle(corridorName) {
+        if (selectedCorridors.has(corridorName)) {
+            selectedCorridors.delete(corridorName);
+        } else {
+            selectedCorridors.add(corridorName);
+        }
+        selectedCorridors = selectedCorridors; // Trigger reactivity
+        filterActive = selectedCorridors.size > 0;
+        updateMarkerVisibility();
     }
 
     function manageCommentListener(id) {
@@ -294,7 +341,7 @@
         currentWindowOpen = null;
     }
 
-    function displayCorridor(map, fileName, layerId, checkboxId) {
+    function displayCorridor(map, fileName, layerId, checkboxId, corridorName) {
         const filePath = new URL(`../lib/corridor_geojson/${fileName}`, import.meta.url).href;
         fetch(filePath)
             .then(response => response.json())
@@ -318,11 +365,16 @@
                 };
                 map.addLayer(layer);
 
-                // Checkbox control
+                // Checkbox control for both route visibility and hazard filtering
                 const checkbox = document.getElementById(checkboxId);
-                checkbox.addEventListener('change', () => {
-                    map.setLayoutProperty(layerId, 'visibility', checkbox.checked ? 'visible' : 'none');
-                });
+                if (checkbox) {
+                    checkbox.addEventListener('change', () => {
+                        // Toggle route line visibility
+                        map.setLayoutProperty(layerId, 'visibility', checkbox.checked ? 'visible' : 'none');
+                        // Toggle hazard filtering
+                        handleCorridorToggle(corridorName);
+                    });
+                }
             })
             .catch(error => console.error('Error loading GeoJSON:', error));
         }
@@ -381,12 +433,13 @@
                             if (mapMarkers[markerSnapshot.key]) {
                                 mapMarkers[markerSnapshot.key].remove();
                                 delete mapMarkers[markerSnapshot.key];
-                            } 
-                            
+                                delete hazardData[markerSnapshot.key];
+                            }
+
                             const hazard = new Hazard(markerSnapshot.key, markerData.longitude, markerData.latitude, markerData.name, markerData.description, markerData.status, markerData.confirmed, markerData.resolved, markerData.report_date, markerData.corridor, markerData.username)
                             createMarker(hazard, markerData.status == 1 ? "black" : "red");
                         }
-                        
+
                     });
 
                     //off(hazardsRef);
@@ -400,19 +453,19 @@
         });
 
         map.on('load', () => {
-            displayCorridor(map, "520.geojson", 'layer-520', 'checkbox-520');
-            displayCorridor(map, "i-90.geojson", 'layer-90', 'checkbox-90');
-            displayCorridor(map, "alki.geojson", 'layer-alki', 'checkbox-alki');
-            displayCorridor(map, "bgt.geojson", 'layer-bgt', 'checkbox-bgt');
-            displayCorridor(map, "dt-bellevue.geojson", 'layer-dt-bellevue', 'checkbox-dt-bellevue');
-            displayCorridor(map, "dt-seattle.geojson", 'layer-dt-seattle', 'checkbox-dt-seattle');
-            displayCorridor(map, "ckc.geojson", 'layer-ckc', 'checkbox-ckc');
-            displayCorridor(map, "elst.geojson", 'layer-elst', 'checkbox-elst');
-            displayCorridor(map, "srt.geojson", 'layer-srt', 'checkbox-srt');
-            displayCorridor(map, "westlake-cycle.geojson", 'layer-westlake-cycle', 'checkbox-westlake-cycle');
-            displayCorridor(map, "lwl-kirkland.geojson", 'layer-lwl-kirkland', 'checkbox-lwl-kirkland');
-            displayCorridor(map, "lwl-renton.geojson", 'layer-lwl-renton', 'checkbox-lwl-renton');
-            displayCorridor(map, "lwl-south-seattle.geojson", 'layer-lwl-south-seattle', 'checkbox-lwl-south-seattle');
+            displayCorridor(map, "520.geojson", 'layer-520', 'checkbox-520', '520 trail');
+            displayCorridor(map, "i-90.geojson", 'layer-90', 'checkbox-90', 'i-90 trail');
+            displayCorridor(map, "alki.geojson", 'layer-alki', 'checkbox-alki', 'alki trail/east marginal way');
+            displayCorridor(map, "bgt.geojson", 'layer-bgt', 'checkbox-bgt', 'burke gilman trail');
+            displayCorridor(map, "dt-bellevue.geojson", 'layer-dt-bellevue', 'checkbox-dt-bellevue', 'downtown bellevue (108th)');
+            displayCorridor(map, "dt-seattle.geojson", 'layer-dt-seattle', 'checkbox-dt-seattle', 'downtown seattle (2nd/bell)');
+            displayCorridor(map, "ckc.geojson", 'layer-ckc', 'checkbox-ckc', 'eastrail/cross kirkland corridor');
+            displayCorridor(map, "elst.geojson", 'layer-elst', 'checkbox-elst', 'east lake sammamish trail');
+            displayCorridor(map, "srt.geojson", 'layer-srt', 'checkbox-srt', 'sammamish river trail');
+            displayCorridor(map, "westlake-cycle.geojson", 'layer-westlake-cycle', 'checkbox-westlake-cycle', 'ship canal trail/westlake cycletrack');
+            displayCorridor(map, "lwl-kirkland.geojson", 'layer-lwl-kirkland', 'checkbox-lwl-kirkland', 'lake washington loop (kirkland)');
+            displayCorridor(map, "lwl-renton.geojson", 'layer-lwl-renton', 'checkbox-lwl-renton', 'lake washington loop (south bellevue/renton)');
+            displayCorridor(map, "lwl-south-seattle.geojson", 'layer-lwl-south-seattle', 'checkbox-lwl-south-seattle', 'lake washington loop (south seattle/central district)');
         });
 
         
@@ -495,8 +548,7 @@
 
 <div id="map-container"></div>
 
-{#if !isMobileSize}
-    <div class="sidebar" style="display: {showMenu ? 'block' : 'none'}">
+<div class="sidebar" style="display: {showMenu ? 'block' : 'none'}">
         {#if isMobileSize}
             <button class="close-button" on:click={toggleMenu}>X</button>
         {:else}
@@ -519,34 +571,34 @@
 
         <hr>
         <h3>regional trails and bicycle corridors:</h3>
-        <input type="checkbox" id="checkbox-520"> 
+        <p style="font-size: 0.8rem; margin-bottom: 0.5rem;">Check a corridor to show its route and filter hazards to only that area. Leave all unchecked to see all hazards.</p>
+        <input type="checkbox" id="checkbox-520">
         <label for="checkbox-520">520 trail</label><br>
-        <input type="checkbox" id="checkbox-90"> 
+        <input type="checkbox" id="checkbox-90">
         <label for="checkbox-90">i-90 trail</label><br>
-        <input type="checkbox" id="checkbox-alki"> 
+        <input type="checkbox" id="checkbox-alki">
         <label for="checkbox-alki">alki trail/east marginal way</label><br>
-        <input type="checkbox" id="checkbox-bgt"> 
+        <input type="checkbox" id="checkbox-bgt">
         <label for="checkbox-bgt">burke gilman trail</label><br>
-        <input type="checkbox" id="checkbox-dt-bellevue"> 
+        <input type="checkbox" id="checkbox-dt-bellevue">
         <label for="checkbox-dt-bellevue">downtown bellevue (108th)</label><br>
-        <input type="checkbox" id="checkbox-dt-seattle"> 
+        <input type="checkbox" id="checkbox-dt-seattle">
         <label for="checkbox-dt-seattle">downtown seattle (2nd, bell)</label><br>
-        <input type="checkbox" id="checkbox-ckc"> 
+        <input type="checkbox" id="checkbox-ckc">
         <label for="checkbox-ckc">eastrail/cross kirkland corridor</label><br>
-        <input type="checkbox" id="checkbox-elst"> 
+        <input type="checkbox" id="checkbox-elst">
         <label for="checkbox-elst">east lake sammamish trail</label><br>
-        <input type="checkbox" id="checkbox-srt"> 
+        <input type="checkbox" id="checkbox-srt">
         <label for="checkbox-srt">sammamish river trail</label><br>
-        <input type="checkbox" id="checkbox-westlake-cycle"> 
+        <input type="checkbox" id="checkbox-westlake-cycle">
         <label for="checkbox-westlake-cycle">ship canal trail/westlake cycletrack</label><br>
-        <input type="checkbox" id="checkbox-lwl-kirkland"> 
+        <input type="checkbox" id="checkbox-lwl-kirkland">
         <label for="checkbox-lwl-kirkland">lake washington loop (kirkland)</label><br>
-        <input type="checkbox" id="checkbox-lwl-renton"> 
+        <input type="checkbox" id="checkbox-lwl-renton">
         <label for="checkbox-lwl-renton">lake washington loop (south bellevue/renton)</label><br>
-        <input type="checkbox" id="checkbox-lwl-south-seattle"> 
+        <input type="checkbox" id="checkbox-lwl-south-seattle">
         <label for="checkbox-lwl-south-seattle">lake washington loop (south seattle/central district)</label>
-    </div>
-{/if}
+</div>
 
 {#if currentWindowOpen} 
     <div class="floating-window">
