@@ -73,7 +73,7 @@
 
     let amend_input = '';
 
-    let showMenu = false;
+    let showMenu = true;
     let isMobileSize = false;
     let innerWidth = 0
     let innerHeight = 0
@@ -399,19 +399,23 @@
             openHazardForm(e.lngLat);
         });
 
-        displayCorridor(map, "520.geojson", 'layer-520', 'checkbox-520');
-        displayCorridor(map, "i-90.geojson", 'layer-90', 'checkbox-90');
-        displayCorridor(map, "alki.geojson", 'layer-alki', 'checkbox-alki');
-        displayCorridor(map, "bgt.geojson", 'layer-bgt', 'checkbox-bgt');
-        displayCorridor(map, "dt-bellevue.geojson", 'layer-dt-bellevue', 'checkbox-dt-bellevue');
-        displayCorridor(map, "dt-seattle.geojson", 'layer-dt-seattle', 'checkbox-dt-seattle');
-        displayCorridor(map, "ckc.geojson", 'layer-ckc', 'checkbox-ckc');
-        displayCorridor(map, "elst.geojson", 'layer-elst', 'checkbox-elst');
-        displayCorridor(map, "srt.geojson", 'layer-srt', 'checkbox-srt');
-        displayCorridor(map, "westlake-cycle.geojson", 'layer-westlake-cycle', 'checkbox-westlake-cycle');
-        displayCorridor(map, "lwl-kirkland.geojson", 'layer-lwl-kirkland', 'checkbox-lwl-kirkland');
-        displayCorridor(map, "lwl-renton.geojson", 'layer-lwl-renton', 'checkbox-lwl-renton');
-        displayCorridor(map, "lwl-south-seattle.geojson", 'layer-lwl-south-seattle', 'checkbox-lwl-south-seattle');
+        map.on('load', () => {
+            displayCorridor(map, "520.geojson", 'layer-520', 'checkbox-520');
+            displayCorridor(map, "i-90.geojson", 'layer-90', 'checkbox-90');
+            displayCorridor(map, "alki.geojson", 'layer-alki', 'checkbox-alki');
+            displayCorridor(map, "bgt.geojson", 'layer-bgt', 'checkbox-bgt');
+            displayCorridor(map, "dt-bellevue.geojson", 'layer-dt-bellevue', 'checkbox-dt-bellevue');
+            displayCorridor(map, "dt-seattle.geojson", 'layer-dt-seattle', 'checkbox-dt-seattle');
+            displayCorridor(map, "ckc.geojson", 'layer-ckc', 'checkbox-ckc');
+            displayCorridor(map, "elst.geojson", 'layer-elst', 'checkbox-elst');
+            displayCorridor(map, "srt.geojson", 'layer-srt', 'checkbox-srt');
+            displayCorridor(map, "westlake-cycle.geojson", 'layer-westlake-cycle', 'checkbox-westlake-cycle');
+            displayCorridor(map, "lwl-kirkland.geojson", 'layer-lwl-kirkland', 'checkbox-lwl-kirkland');
+            displayCorridor(map, "lwl-renton.geojson", 'layer-lwl-renton', 'checkbox-lwl-renton');
+            displayCorridor(map, "lwl-south-seattle.geojson", 'layer-lwl-south-seattle', 'checkbox-lwl-south-seattle');
+        });
+
+        
     });
 
     function openHazardForm(useLocation) {
@@ -466,8 +470,10 @@
 
     $: if (innerWidth > 768) {
         isMobileSize = false;
+        showMenu = true;
     } else {
         isMobileSize = true;
+        showMenu = false;
     }
 
 </script>
@@ -489,8 +495,8 @@
 
 <div id="map-container"></div>
 
-{#if !isMobileSize || showMenu}
-    <div class="sidebar">
+{#if !isMobileSize}
+    <div class="sidebar" style="display: {showMenu ? 'block' : 'none'}">
         {#if isMobileSize}
             <button class="close-button" on:click={toggleMenu}>X</button>
         {:else}
@@ -506,9 +512,9 @@
         {/if}
 
         <h3>info:</h3>
-        <p>click on the map to mark a hazard. for closures and scheduled hazards, enter an end date to the best of your knowledge. otherwise, leave it blank.</p>
+        <p>click on the map to mark a hazard.</p>
         <p><b>black markers</b> denote ongoing alerts.</p>
-        <p><b>red markers</b> denote alerts that are expired or flagged as resolved. users can vote on whether the hazard is still present or gone by clicking on the marker.</p>
+        <p><b>red markers</b> denote alerts that are flagged as resolved. users can vote on whether the hazard is still present or gone by clicking on the marker.</p>
         
 
         <hr>
@@ -556,52 +562,61 @@
             <p style="line-height: 1.6;">{selectedHazard.description != null ? selectedHazard.description : "no description provided"}</p>
             
             {#if !selectedHazard.status}
-                <p style="font-size: smaller; color: #d32f2f;">* this hazard may be resolved, proceed with caution.</p>
-                <p style="font-size: smaller; color: #d32f2f;">this hazard was either flagged for review by a community member, or is past the expected end date. as a crowdsourced tool, we rely on your reports to verify the presence of hazards.</p>
-                <p style="font-size: smaller; color: #d32f2f;">last reported: {selectedHazard.report_date}</p>
+                <div class="warning-box">
+                    <p><strong>⚠ This hazard may be resolved</strong></p>
+                    <p>This hazard was flagged for review by a community member or is past the expected end date. As a crowdsourced tool, we rely on your reports to verify the presence of hazards.</p>
+                    <p><strong>Last reported:</strong> {selectedHazard.report_date}</p>
+                </div>
             {/if}
 
             <h5>comments</h5>
-            {#if comments.length == 0}
-                <p>no comments yet</p>
-            {:else}
-                {#each comments as commentTuple}
-                    <p><b>{commentTuple[0]}</b>: {commentTuple[1]}</p>
-                {/each}
-            {/if}
+            <div class="comments-section">
+                {#if comments.length == 0}
+                    <p class="no-comments">no comments yet</p>
+                {:else}
+                    {#each comments as commentTuple}
+                        <div class="comment">
+                            <p class="comment-meta">{commentTuple[0]}</p>
+                            <p class="comment-text">{commentTuple[1]}</p>
+                        </div>
+                    {/each}
+                {/if}
+            </div>
 
             {#if user}
-                <textarea bind:value={amend_input} placeholder="add a comment" style="width: calc(100% - 20px); padding: 10px; border: 1px solid #ccc; height: 80px;"></textarea>
-                <button on:click={submitAmendment} style="width: 100%;">submit comment</button><br>
+                <textarea bind:value={amend_input} placeholder="add a comment"></textarea>
+                <button on:click={submitAmendment} class="btn-full">submit comment</button>
                 {#if !selectedHazard.status}
                     <h5>if you have been here, is this hazard...</h5>
-                    <button on:click={confirmedIncrement} style="width: 50%;display: inline-block;">still present ({selectedHazard.confirmed})</button><button on:click={resolvedIncrement} style="width: 50%;display: inline-block;">not present ({selectedHazard.resolved})</button>
+                    <div class="button-group">
+                        <button on:click={confirmedIncrement} class="btn-half btn-success">still present ({selectedHazard.confirmed})</button>
+                        <button on:click={resolvedIncrement} class="btn-half btn-danger">not present ({selectedHazard.resolved})</button>
+                    </div>
                 {:else}
-                    <button on:click={flagHazard} style="width: 100%;">flag</button>
+                    <button on:click={flagHazard} class="btn-full btn-warning">flag for review</button>
                 {/if}
-                <br>
                 {#if user.displayName == selectedHazard.username}
                     {#if !selectedHazard.status}
-                        <button on:click={unflagHazard} style="width: 100%;">withdraw flag</button>
+                        <button on:click={unflagHazard} class="btn-full btn-secondary">withdraw flag</button>
                     {/if}
-                    <button on:click={deleteHazard} style="width: 100%;">delete</button>
+                    <button on:click={deleteHazard} class="btn-full btn-danger">delete hazard</button>
                 {/if}
-            
+
             {/if}
 
         {:else if currentWindowOpen == "create hazard" && newMarkerCoords}
-            <h1 style="color: #d32f2f">add hazard</h1>
+            <h1 class="hazard-title">add hazard</h1>
             <h3>give a name for the hazard (or use one of the dropdown options) *</h3>
-            <input type="text" list="hazardTypeDataList" bind:value={newMarkerName} style="width: calc(100% - 20px); padding: 10px; border: 1px solid #ccc;">
+            <input type="text" list="hazardTypeDataList" bind:value={newMarkerName}>
             <datalist id="hazardTypeDataList">
                 {#each hazardTypes as type}
                     <option value={type}></option>
                 {/each}
             </datalist>
             <h3>description</h3>
-            <textarea placeholder="describe the hazard" bind:value={newMarkerDescription} style="width: calc(100% - 20px); padding: 10px; border: 1px solid #ccc; height: 80px;"></textarea>
+            <textarea placeholder="describe the hazard" bind:value={newMarkerDescription}></textarea>
             <h3>select bike corridor (if applicable)</h3>
-            <select id="corridorSelect" bind:value={newMarkerCorridor} style="width: 100%; padding: 10px; border: 1px solid #ccc;">
+            <select id="corridorSelect" bind:value={newMarkerCorridor}>
                 {#each corridorList as type}
                     <option value={type}>{type}</option>
                 {/each}
@@ -609,7 +624,7 @@
             {#if user}
                 <h3>posting as: {user.displayName}</h3>
             {/if}
-            <button on:click={handleHazardCreation}>add hazard</button>
+            <button on:click={handleHazardCreation} class="btn-full btn-success">add hazard</button>
 
         {/if}
     </div>
@@ -627,20 +642,21 @@
 
 <style>
     .top-nav {
-        background-color: #f0f0f0; 
+        background-color: var(--background);
+        border-bottom: 1px solid var(--border-color);
         box-sizing: border-box;
-        padding: 20px 20px;
+        padding: 0.75rem 1.25rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 0.75rem;
         z-index: 5;
         left: 0;
         width: 100%;
         top: 0;
         height: 60px;
-        margin-top:0%;
         position: fixed;
-        overflow: hidden;
+        box-shadow: var(--shadow-sm);
     }
 
     #map-container {
@@ -657,12 +673,13 @@
         height: 100%;
         width: 25%;
         z-index: 4;
-        padding: 10px;
+        padding: 1.5rem;
         box-sizing: border-box;
         overflow-x: hidden;
         overflow-y: auto;
-        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-        background-color: white;
+        box-shadow: var(--shadow-lg);
+        background-color: var(--background);
+        border-right: 1px solid var(--border-color);
     }
 
     .floating-window {
@@ -674,48 +691,112 @@
         max-height: 80%;
         overflow-x: hidden;
         overflow-y: auto;
-        background-color: white;
-        padding: 20px;
-        box-shadow: 5px 0 5px rgba(0, 0, 0, 0.1);
-        border-radius: 5px;
+        background-color: var(--background);
+        padding: 1.75rem;
+        box-shadow: var(--shadow-xl);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-color);
         box-sizing: border-box;
         z-index: 3;
     }
 
     .close-button {
         position: absolute;
-        top: 20px;
-        right: 20px;
+        top: 1rem;
+        right: 1rem;
         cursor: pointer;
+        background-color: var(--surface);
+        color: var(--text-secondary);
+        padding: 0.5rem 0.75rem;
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        font-size: 0.875rem;
+        border: 1px solid var(--border-color);
     }
 
-    @media (max-width: 768px) { 
+    .close-button:hover {
+        background-color: var(--danger-color);
+        color: white;
+        border-color: var(--danger-color);
+    }
+
+    .mobile-menu-button {
+        background-color: var(--surface);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+    }
+
+    .mobile-menu-button:hover {
+        background-color: var(--border-color);
+    }
+
+    .user-auth-button {
+        background-color: var(--success-color);
+        font-size: 0.8rem;
+        padding: 0.5rem 1rem;
+    }
+
+    .user-auth-button:hover {
+        background-color: #15803d;
+    }
+
+    @media (max-width: 768px) {
         #map-container {
-            left: 0%;
+            left: 0;
             width: 100%;
-            top: 0%;
+            top: 0;
             height: 100%;
         }
+
         .sidebar {
-            left: 0%;
+            left: 0;
             width: 100%;
             top: 60px;
-            height: calc(100%-60px);
+            height: calc(100% - 60px);
             z-index: 3;
+            padding: 1rem;
         }
 
         .floating-window {
-            left: 0%;
+            left: 0;
             width: 100%;
-            top: 80%;
-            height: 40%;
+            top: auto;
+            bottom: 0;
+            transform: none;
+            height: 60vh;
+            max-height: 60vh;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            padding: 1.25rem;
         }
 
+        .floating-window h1 {
+            font-size: 1.5rem;
+        }
+
+        .floating-window h3 {
+            font-size: 0.95rem;
+        }
+
+        .button-group {
+            flex-direction: column;
+        }
+
+        .btn-half {
+            width: 100%;
+        }
+
+        .top-nav {
+            padding: 0.5rem 0.75rem;
+        }
+
+        .top-nav p {
+            font-size: 0.75rem;
+        }
     }
 
     .quick-add-marker-container {
         display: flex;
-        justify-content: center; 
+        justify-content: center;
         width: 100%;
     }
 
@@ -725,10 +806,189 @@
         width: 75%;
         height: 60px;
         z-index: 2;
-        box-shadow: 5px 0 5px rgba(0, 0, 0, 0.1);
-        border-radius: 5px;
+        box-shadow: var(--shadow-lg);
+        border-radius: var(--radius-lg);
         box-sizing: border-box;
-        padding: 0 10px; 
+        padding: 0 1rem;
+        background-color: var(--primary-color);
+        color: white;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .quick-add-marker:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-xl);
+    }
+
+    .floating-window h1 {
+        margin-bottom: 1rem;
+        padding-right: 2rem;
+    }
+
+    .floating-window h3 {
+        margin-top: 1rem;
+        margin-bottom: 0.5rem;
+        color: var(--text-primary);
+        font-size: 1rem;
+    }
+
+    .floating-window h5 {
+        margin-bottom: 0.5rem;
+    }
+
+    .floating-window button {
+        margin-top: 0.5rem;
+    }
+
+    .floating-window input[type="text"],
+    .floating-window textarea,
+    .floating-window select {
+        width: 100%;
+        margin-top: 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .floating-window textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .sidebar h3 {
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        font-size: 1.1rem;
+    }
+
+    .sidebar p {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+
+    .sidebar input[type="checkbox"] {
+        margin-right: 0.5rem;
+        vertical-align: middle;
+    }
+
+    .sidebar label {
+        vertical-align: middle;
+        line-height: 1.8;
+    }
+
+    .top-nav p {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin: 0;
+    }
+
+    /* Button variants */
+    .btn-full {
+        width: 100%;
+        display: block;
+    }
+
+    .btn-half {
+        width: calc(50% - 0.25rem);
+        display: inline-block;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .btn-danger {
+        background-color: var(--danger-color);
+    }
+
+    .btn-danger:hover {
+        background-color: var(--danger-hover);
+    }
+
+    .btn-success {
+        background-color: var(--success-color);
+    }
+
+    .btn-success:hover {
+        background-color: #15803d;
+    }
+
+    .btn-warning {
+        background-color: var(--warning-color);
+    }
+
+    .btn-warning:hover {
+        background-color: #c2410c;
+    }
+
+    .btn-secondary {
+        background-color: var(--secondary-color);
+    }
+
+    .btn-secondary:hover {
+        background-color: #475569;
+    }
+
+    .hazard-title {
+        color: var(--danger-color);
+    }
+
+    /* Warning box */
+    .warning-box {
+        background-color: #fef2f2;
+        border-left: 4px solid var(--danger-color);
+        padding: 1rem;
+        margin: 1rem 0;
+        border-radius: var(--radius-sm);
+    }
+
+    .warning-box p {
+        color: var(--danger-color);
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+
+    .warning-box p:last-child {
+        margin-bottom: 0;
+    }
+
+    /* Comment section */
+    .comments-section {
+        margin: 1rem 0;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .comment {
+        background-color: var(--surface);
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border-color);
+    }
+
+    .comment-meta {
+        color: var(--primary-color);
+        font-weight: 600;
+        font-size: 0.8rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .comment-text {
+        color: var(--text-primary);
+        font-size: 0.875rem;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .no-comments {
+        color: var(--text-secondary);
+        font-style: italic;
+        font-size: 0.875rem;
     }
 
 </style>
